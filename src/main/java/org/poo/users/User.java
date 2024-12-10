@@ -63,6 +63,7 @@ public class User {
                 .orElse(null); // Returnăm null dacă nu am găsit contul
     }
 
+
     // Transformăm obiectul utilizator în hartă pentru afișare
     public Map<String, Object> toMap() {
         Map<String, Object> map = new HashMap<>();

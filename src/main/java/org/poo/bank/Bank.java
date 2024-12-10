@@ -2,6 +2,7 @@ package org.poo.bank;
 
 import org.poo.fileio.CommandInput;
 import org.poo.fileio.ObjectInput;
+import org.poo.operations.Command;
 import org.poo.operations.ExchangeRateManager;
 import org.poo.users.User;
 import org.poo.utils.Utils;
@@ -12,6 +13,7 @@ import java.util.stream.Collectors;
 
 public class Bank {
     private final List<User> users = new ArrayList<>();
+    private Map<String, Account> accounts = new HashMap<>();
 
 
     public Bank(final ObjectInput objectInput) {
@@ -34,6 +36,8 @@ public class Bank {
             case "createCard":
                 createCard(command);
                 return Collections.emptyList();
+            case "createOneTimeCard":
+                createOneTimeCard(command);
             case "addFunds":
                 addFunds(command);
                 return Collections.emptyList();
@@ -56,6 +60,18 @@ public class Bank {
                 return Collections.emptyList();
             case "printTransactions": // Adăugăm comanda aici
                 return printTransactions(command);
+            case "checkCardStatus":
+                Map<String, Object> response = checkCardStatus(command);
+
+                // Dacă răspunsul conține "output", adăugăm în formatul final
+                if (response.containsKey("output")) {
+                    return Collections.singletonList(response);
+                } else {
+                    return Collections.emptyList(); // Niciun răspuns dacă nu există output
+                }
+            case "changeInterestRate":
+                changeInterestRate(command);
+                return Collections.emptyList();
             default:
                 throw new IllegalArgumentException("Unknown command: " + command.getCommand());
         }
@@ -82,6 +98,97 @@ public class Bank {
         return outputTransactions;
     }
 
+
+    public void changeInterestRate(CommandInput command) {
+        String targetIBAN = command.getAccount();
+        double newInterestRate = command.getInterestRate();
+
+        // Căutăm contul țintă
+        Account targetAccount = null;
+        for (User user : users) {
+            targetAccount = user.getAccountByIBAN(targetIBAN);
+            if (targetAccount != null) {
+                break;
+            }
+        }
+
+        if (targetAccount == null) {
+            throw new IllegalArgumentException("Account not found");
+        }
+
+        // Schimbăm rata dobânzii
+        targetAccount.setInterestRate(newInterestRate);
+    }
+
+
+    public Map<String, Object> checkCardStatus(CommandInput command) {
+        String cardNumber = command.getCardNumber();
+        int timestamp = command.getTimestamp();
+
+        // Găsim utilizatorul pe baza numărului de card
+        User user = findUserByCardNumber(cardNumber);
+        String description = "";
+
+        Map<String, Object> response = new HashMap<>();
+
+        // Verificăm dacă utilizatorul există
+        if (user == null) {
+            description = "Card not found";
+            Map<String, Object> output = new HashMap<>();
+            output.put("description", description);
+            output.put("timestamp", timestamp);
+
+            response.put("command", "checkCardStatus");
+            response.put("output", output);
+            response.put("timestamp", timestamp);
+        } else {
+            Account account = findAccountByCardNumber(user, cardNumber);
+            if (account != null) {
+                Card card = account.getCardByNumber(cardNumber);
+                if (card != null && account.getBalance() <= account.getMinimumBalance()) {
+                    // Cardul este înghețat, înregistrăm tranzacția
+                    description = "You have reached the minimum amount of funds, the card will be frozen";
+                    Transaction transaction = new Transaction(
+                            timestamp,
+                            description,
+                            account.getIBAN(),
+                            null, // ReceiverIBAN poate fi null
+                            0, // Suma este 0 pentru acest tip de tranzacție
+                            null, // Currency este null
+                            null, // TransferType este null
+                            cardNumber,
+                            user.getEmail(),
+                            null, // Commerciantul este null
+                            "checkCardStatusFrozen" // Transaction type este "checkCardStatusFrozen"
+                    );
+                    user.addTransaction(transaction);
+                }
+            }
+            // Nu adăugăm niciun răspuns dacă cardul există
+        }
+        return response;
+    }
+
+
+
+    private Account findAccountByCardNumber(User user, String cardNumber) {
+        return user.getAccounts().stream()
+                .filter(account -> account.getCardByNumber(cardNumber) != null)
+                .findFirst()
+                .orElse(null);
+    }
+
+
+    private User findUserByCardNumber(String cardNumber) {
+        for (User user : users) {
+            for (Account account : user.getAccounts()) {
+                if (account.getCardByNumber(cardNumber) != null) {
+                    return user;
+                }
+            }
+        }
+        return null;
+    }
 
     public void setAlias(CommandInput command) {
         String email = command.getEmail();   // Email-ul utilizatorului
@@ -158,6 +265,20 @@ public class Bank {
 
         // Verificăm dacă expeditorul are suficiente fonduri
         if (senderAccount.getBalance() < amount) {
+            // Adăugăm tranzacția de eroare la utilizator
+            Transaction insufficientFundsTransaction = new Transaction(
+                    timestamp,
+                    "Insufficient funds",
+                    senderIBAN,
+                    receiverIBAN,
+                    amount,
+                    senderAccount.getCurrency(),
+                    "error",
+                    null, null, null,
+                    "sendMoneyInsufficientFunds"
+            );
+            senderUser.addTransaction(insufficientFundsTransaction);
+
             Map<String, Object> error = new HashMap<>();
             error.put("description", "Insufficient funds in sender account");
             output.add(error);
@@ -224,17 +345,28 @@ public class Bank {
             return output; // Nu facem nimic dacă utilizatorul nu există
         }
 
+        System.out.println("User found: " + user.getEmail());
+
         // Căutăm contul și cardul activ
         Account account = null;
         Card card = null;
+
+        System.out.println("Checking accounts for user: " + user.getEmail());
         for (Account acc : user.getAccounts()) {
+            System.out.println("Checking account with IBAN: " + acc.getIBAN());
             card = acc.getCardByNumber(command.getCardNumber());
-            if (card != null && card.getStatus().equals("active")) {
+
+            if (card != null) {
+                System.out.println("Card found: " + card.getCardNumber() + " with status: " + card.getStatus());
+            }
+
+            if (card != null) {
                 account = acc;
                 break;
             }
         }
 
+        // Dacă cardul nu a fost găsit sau nu este activ
         if (card == null) {
             Map<String, Object> errorNode = new HashMap<>();
             errorNode.put("description", "Card not found");
@@ -245,6 +377,14 @@ public class Bank {
             output.add(response);
 
             return output;
+        }
+
+        // Verificăm dacă account este null
+        if (account == null) {
+            System.out.println("Account is null for user: " + user.getEmail());
+            return output;
+        } else {
+            System.out.println("Account is valid: " + account.getIBAN());
         }
 
         double amount = command.getAmount();
@@ -270,7 +410,7 @@ public class Bank {
         }
 
         // Verificăm dacă sunt suficiente fonduri
-        if (availableBalance < amount) {
+        if (availableBalance < amount && card.getStatus().equals("active")) {
             Transaction transaction1 = new Transaction(
                     command.getTimestamp(),
                     "Insufficient funds",
@@ -284,6 +424,34 @@ public class Bank {
                     "payOnlineInsufficentFunds" // Transaction Type
             );
             user.addTransaction(transaction1);
+            return output;
+        }
+
+        if (amount > availableBalance - account.getMinimumBalance()) {
+            card.setStatus("frozen");
+            System.out.println("Card " + card.getCardNumber() + " has been frozen.");
+        }
+
+        if (card.getStatus().equals("frozen")) {
+            // Înregistrăm tranzacția că cardul este blocat
+            Transaction transaction = new Transaction(
+                    command.getTimestamp(),
+                    "The card is frozen",
+                    account.getIBAN(), // Sender IBAN
+                    command.getCommerciant(), // Receiver IBAN (comerciantul)
+                    0, // Nu se face transfer
+                    account.getCurrency(),
+                    "payment", // Transfer Type
+                    command.getCardNumber(), // Card Number
+                    user.getEmail(), // Card Holder
+                    command.getCommerciant(), // Commerciant
+                    "payOnlineCardIsFrozen" // Transaction Type
+            );
+
+            // Adăugăm tranzacția utilizatorului
+            user.addTransaction(transaction);
+
+            // Nu mai procesăm plata
             return output;
         }
 
@@ -310,6 +478,7 @@ public class Bank {
         // Nu adăugăm nimic în output în cazul unui succes
         return Collections.emptyList(); // succes
     }
+
 
 
     public void setMinimumBalance(CommandInput command) {
@@ -410,6 +579,39 @@ public class Bank {
 
     }
 
+    public void createOneTimeCard(CommandInput command) {
+        User  user = findUserByEmail(command.getEmail());
+        if (user == null) {
+            return;
+        }
+
+        Account account = user.getAccountByIBAN(command.getAccount());
+        if (account == null) {
+            return;
+        }
+
+        String description;
+        String cardNumber;
+
+        cardNumber = Utils.generateCardNumber();
+        Card card = new Card(cardNumber, "active");
+        account.addCard(card);
+        description = "New card created";
+
+        Transaction transaction = new Transaction(
+                command.getTimestamp(),
+                description,
+                null, // Sender IBAN
+                account.getIBAN(), // Receiver IBAN
+                0, // Amount
+                account.getCurrency(),
+                "other", cardNumber,
+                user.getEmail(), null,"createCard"
+        );
+
+        user.addTransaction(transaction);
+    }
+
     public void createCard(CommandInput command) {
         User user = findUserByEmail(command.getEmail());
         if (user == null) {
@@ -424,21 +626,20 @@ public class Bank {
         String description;
         String cardNumber;
 
-        if ("createCard".equals(command.getCommand())) {
+         // if ("createCard".equals(command.getCommand())) {
             cardNumber = Utils.generateCardNumber();
             Card card = new Card(cardNumber, "active");
             account.addCard(card);
             description = "New card created";
-        } else if ("createOneTimeCard".equals(command.getCommand())) {
-            cardNumber = Utils.generateCardNumber();
-            OneTimeCard oneTimeCard = new OneTimeCard(cardNumber, "active");
-            account.addCard(oneTimeCard);
-            description = "New one-time card created";
-        } else {
-            return;
-        }
+//        } else if ("createOneTimeCard".equals(command.getCommand())) {
+//            cardNumber = Utils.generateCardNumber();
+//            OneTimeCard oneTimeCard = new OneTimeCard(cardNumber, "active");
+//            account.addCard(oneTimeCard);
+//            description = "New one-time card created";
+//        } else {
+//            return;
+//        }
 
-        // Creăm tranzacția
         Transaction transaction = new Transaction(
                 command.getTimestamp(),
                 description,
@@ -486,6 +687,15 @@ public class Bank {
                 return;
             }
         }
+    }
+
+    public void addAccount(Account account) {
+        accounts.put(account.getIBAN(), account);
+    }
+
+    // Metodă pentru a obține un cont pe baza IBAN-ului
+    public Account getAccount(String iban) {
+        return accounts.get(iban);
     }
 
     public User findUserByEmail(String email) {

@@ -63,6 +63,10 @@ public class Transaction {
                 map.put("amount", String.format("%.1f %s", amount, currency));
                 map.put("transferType", transferType);
                 break;
+            case "sendMoneyInsufficientFunds":
+                map.put("timestamp", timestamp);
+                map.put("description", description);
+                break;
             case "payOnlineInsufficentFunds":
                 map.put("timestamp", timestamp);
                 map.put("description", description);
@@ -73,20 +77,27 @@ public class Transaction {
                 map.put("commerciant", commerciant);
                 map.put("amount", amount);
                 break;
+            case "payOnlineCardIsFrozen":
+                map.put("timestamp", timestamp);
+                map.put("description", description);
+                break;
             case "deleteCard":
                 map.put("timestamp", timestamp);
                 map.put("card", card);
                 map.put("account", senderIBAN);
                 map.put("cardHolder", cardHolder);
                 map.put("description", description);
+                break;
+            case "checkCardStatusFrozen":
+                map.put("timestamp", timestamp);
+                map.put("description", description);
+                break;
             default:
                 break;
         }
         return map;
     }
 
-
-    // Getteri pentru noile câmpuri
     public String getCard() {
         return card;
     }

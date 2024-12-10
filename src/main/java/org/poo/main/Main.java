@@ -3,6 +3,7 @@ package org.poo.main;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.poo.bank.Account;
 import org.poo.bank.Card;
 import org.poo.checker.Checker;
@@ -153,9 +154,8 @@ public final class Main {
                 }
 
 
-
                 case "createOneTimeCard" -> {
-                    bank.createCard(command);
+                    bank.processCommand(command);
                 }
 
                 case "deleteCard" -> {
@@ -205,6 +205,25 @@ public final class Main {
                     // Setează doar tranzacțiile ca output, fără a adăuga structuri suplimentare
                     objectNode.set("output", objectMapper.valueToTree(transactions));
                     output.add(objectNode);
+                }
+
+
+                case "checkCardStatus" -> {
+                    Map<String, Object> response = bank.checkCardStatus(command);
+
+                    if (response.containsKey("output")) {
+                        ObjectNode objectNodeCheckCardStatus = objectMapper.createObjectNode();
+
+                        objectNodeCheckCardStatus .put("command", response.get("command").toString());
+                        objectNodeCheckCardStatus .set("output", objectMapper.valueToTree(response.get("output")));
+                        objectNodeCheckCardStatus .put("timestamp", Integer.parseInt(response.get("timestamp").toString()));
+
+                        output.add(objectNodeCheckCardStatus);
+                    }
+                }
+
+                case "changeInterestRate" -> {
+                    bank.changeInterestRate(command); // Procesăm comanda, fără output
                 }
 
 

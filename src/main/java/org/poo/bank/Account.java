@@ -11,6 +11,7 @@ public class Account {
     private final String type;
     private final List<Card> cards = new ArrayList<>();
     private List<Transaction> transactions = new ArrayList<>();
+    private double interestRate;
 
     public Account(String IBAN, String currency, String type) {
         this.IBAN = IBAN;
@@ -18,6 +19,7 @@ public class Account {
         this.type = type;
         this.balance = 0;
         this.minimumBalance = 0;
+        this.interestRate = 0;
     }
 
     public void addTransaction(String description, double amount, String senderIBAN, String receiverIBAN,
@@ -26,6 +28,17 @@ public class Account {
         Transaction transaction = new Transaction(timestamp, description, senderIBAN, receiverIBAN,
                 amount, currency, transferType, card, cardHolder, commerciant, transactionType); // Adăugăm field-ul "commerciant"
         transactions.add(transaction); // Adăugăm tranzacția în lista contului
+    }
+
+    public void setInterestRate(double newInterestRate) {
+        if (newInterestRate < 0) {
+            throw new IllegalArgumentException("Interest rate cannot be negative");
+        }
+        this.interestRate = newInterestRate;
+    }
+
+    public double getInterestRate() {
+        return interestRate;
     }
 
     public List<Transaction> getTransactions() {
