@@ -102,8 +102,9 @@ public class Transaction {
             case "splitPayment":
                 map.put("timestamp", timestamp);
                 map.put("description", description);
+                map.put("currency", currency);
                 map.put("involvedAccounts", involvedAccounts);  // IBAN-uri de destinație
-                map.put("amount", String.format("%.1f %s", amount, currency));
+                map.put("amount", amount); // Aici, trebuie să păstrăm suma ca un număr (fără ghilimele)
                 break;
             default:
                 break;

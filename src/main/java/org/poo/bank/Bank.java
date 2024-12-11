@@ -10,6 +10,7 @@ import org.poo.utils.Utils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
+
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -104,7 +105,7 @@ public class Bank {
     public List<Map<String, Object>> splitPayment(CommandInput command) {
         List<Map<String, Object>> output = new ArrayList<>();
         List<String> accountIBANs = command.getAccounts();
-        double amount = command.getAmount();
+        double amount = command.getAmount(); // Verifică suma ca tip double
         String currency = command.getCurrency();
         int timestamp = command.getTimestamp();
 
@@ -171,7 +172,7 @@ public class Bank {
             // Creăm tranzacțiile
             Transaction splitTransaction = new Transaction(
                     timestamp,
-                    "Split payment",
+                    "Split payment of " + String.format("%.2f", amount) + " " + currency,  // Suma completă pentru descriere (inclusiv moneda)
                     null,  // Expeditorul nu este relevant, este o împărțire
                     accountIBAN,
                     convertedAmount,
@@ -189,6 +190,7 @@ public class Bank {
         // Dacă totul a fost procesat cu succes, returnăm o listă goală
         return Collections.emptyList();
     }
+
 
     private User getUserByAccountIBAN(String accountIBAN) {
         for (User user : users) {  // Presupunând că users este o listă cu toți utilizatorii
