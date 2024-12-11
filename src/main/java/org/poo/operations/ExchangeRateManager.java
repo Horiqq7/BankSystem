@@ -73,6 +73,8 @@ public class ExchangeRateManager {
             }
         }
 
+        // Poți adăuga o excepție mai informativă sau un mesaj de eroare
         throw new IllegalArgumentException("Exchange rate not found for " + from + " to " + to);
     }
+
 }

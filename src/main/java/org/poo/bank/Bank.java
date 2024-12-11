@@ -105,7 +105,7 @@ public class Bank {
     public List<Map<String, Object>> splitPayment(CommandInput command) {
         List<Map<String, Object>> output = new ArrayList<>();
         List<String> accountIBANs = command.getAccounts();
-        double amount = command.getAmount(); // Verifică suma ca tip double
+        double amount = command.getAmount();
         String currency = command.getCurrency();
         int timestamp = command.getTimestamp();
 
@@ -138,23 +138,24 @@ public class Bank {
             }
 
             if (account == null) {
+                // Adăugăm eroarea pentru contul neexistent
                 Map<String, Object> error = new HashMap<>();
                 error.put("description", "Account not found: " + accountIBAN);
                 output.add(error);
-                return output;
+                continue; // Continuăm cu următorul cont
             }
 
             // Verificăm dacă moneda contului este aceeași cu moneda comenzii
             double convertedAmount = splitAmount;
             if (!currency.equalsIgnoreCase(account.getCurrency())) {
-                // Dacă monedele sunt diferite, aplicăm rata de schimb folosind ExchangeRateManager
                 try {
                     convertedAmount = exchangeRateManager.convertCurrency(currency, account.getCurrency(), splitAmount, timestamp);
                 } catch (IllegalArgumentException e) {
+                    // Adăugăm eroarea pentru conversia valutară
                     Map<String, Object> error = new HashMap<>();
                     error.put("description", "Conversion rate not available for " + currency + " to " + account.getCurrency());
                     output.add(error);
-                    return output;
+                    continue; // Continuăm cu următorul cont
                 }
             }
 
@@ -163,7 +164,7 @@ public class Bank {
                 Map<String, Object> error = new HashMap<>();
                 error.put("description", "Insufficient funds in account: " + accountIBAN);
                 output.add(error);
-                return output;
+                continue; // Continuăm cu următorul cont
             }
 
             // Scădem suma din balance-ul contului
@@ -172,25 +173,22 @@ public class Bank {
             // Creăm tranzacțiile
             Transaction splitTransaction = new Transaction(
                     timestamp,
-                    "Split payment of " + String.format("%.2f", amount) + " " + currency,  // Suma completă pentru descriere (inclusiv moneda)
-                    null,  // Expeditorul nu este relevant, este o împărțire
+                    "Split payment of " + String.format("%.2f", amount) + " " + currency,
+                    null, // Expeditorul nu este relevant, este o împărțire
                     accountIBAN,
-                    convertedAmount,
-                    account.getCurrency(),
+                    splitAmount,
+                    currency,
                     "received",
                     null, null, null,
                     accountIBANs,
                     "splitPayment"
             );
 
-            // Adăugăm tranzacția la utilizator
             user.addTransaction(splitTransaction);
         }
 
-        // Dacă totul a fost procesat cu succes, returnăm o listă goală
-        return Collections.emptyList();
+        return output; // Returnăm toate erorile adunate
     }
-
 
     private User getUserByAccountIBAN(String accountIBAN) {
         for (User user : users) {  // Presupunând că users este o listă cu toți utilizatorii
