@@ -2,6 +2,8 @@ package org.poo.operations;
 
 import org.poo.fileio.ExchangeInput;
 
+import java.math.BigDecimal;
+
 public class ExchangeRate {
     private String from;
     private String to;

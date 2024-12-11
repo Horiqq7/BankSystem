@@ -1,6 +1,7 @@
 package org.poo.bank;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class Transaction {
@@ -15,10 +16,11 @@ public class Transaction {
     private final String cardHolder; // Deținătorul cardului
     private final String transactionType;
     private final String commerciant;
+    private final List<String> involvedAccounts;
 
     public Transaction(int timestamp, String description, String senderIBAN, String receiverIBAN,
                        double amount, String currency, String transferType, String card, String cardHolder, String commerciant,
-                       String transactionType) {
+                       List<String> involvedAccounts, String transactionType) {
         this.timestamp = timestamp;
         this.description = description;
         this.senderIBAN = senderIBAN;
@@ -29,7 +31,12 @@ public class Transaction {
         this.card = card;
         this.cardHolder = cardHolder;
         this.commerciant = commerciant;
+        this.involvedAccounts = involvedAccounts;
         this.transactionType = transactionType;
+    }
+
+    public List<String> getInvolvedAccounts() {
+        return involvedAccounts;
     }
 
     public String getCommerciant() {
@@ -91,6 +98,12 @@ public class Transaction {
             case "checkCardStatusFrozen":
                 map.put("timestamp", timestamp);
                 map.put("description", description);
+                break;
+            case "splitPayment":
+                map.put("timestamp", timestamp);
+                map.put("description", description);
+                map.put("involvedAccounts", involvedAccounts);  // IBAN-uri de destinație
+                map.put("amount", String.format("%.1f %s", amount, currency));
                 break;
             default:
                 break;

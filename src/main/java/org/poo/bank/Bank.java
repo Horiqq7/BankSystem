@@ -3,9 +3,12 @@ package org.poo.bank;
 import org.poo.fileio.CommandInput;
 import org.poo.fileio.ObjectInput;
 import org.poo.operations.Command;
+import org.poo.operations.ExchangeRate;
 import org.poo.operations.ExchangeRateManager;
 import org.poo.users.User;
 import org.poo.utils.Utils;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -25,7 +28,6 @@ public class Bank {
         }
     }
 
-
     public List<Map<String, Object>> processCommand(CommandInput command) {
         switch (command.getCommand()) {
             case "printUsers":
@@ -41,11 +43,11 @@ public class Bank {
             case "addFunds":
                 addFunds(command);
                 return Collections.emptyList();
-            case "deleteAccount":  // Cazul pentru deleteAccount
-                deleteAccount(command); // Apelează metoda deleteAccount
+            case "deleteAccount":
+                deleteAccount(command);
                 return Collections.emptyList();
             case "deleteCard":  // Cazul pentru deleteCard
-                deleteCard(command); // Apelează metoda deleteCard
+                deleteCard(command);
                 return Collections.emptyList();
             case "setMinimumBalance":
                 setMinimumBalance(command);
@@ -62,8 +64,6 @@ public class Bank {
                 return printTransactions(command);
             case "checkCardStatus":
                 Map<String, Object> response = checkCardStatus(command);
-
-                // Dacă răspunsul conține "output", adăugăm în formatul final
                 if (response.containsKey("output")) {
                     return Collections.singletonList(response);
                 } else {
@@ -71,6 +71,9 @@ public class Bank {
                 }
             case "changeInterestRate":
                 changeInterestRate(command);
+                return Collections.emptyList();
+            case "splitPayment": // Adăugăm cazul pentru splitPayment
+                splitPayment(command);
                 return Collections.emptyList();
             default:
                 throw new IllegalArgumentException("Unknown command: " + command.getCommand());
@@ -98,6 +101,105 @@ public class Bank {
         return outputTransactions;
     }
 
+    public List<Map<String, Object>> splitPayment(CommandInput command) {
+        List<Map<String, Object>> output = new ArrayList<>();
+        List<String> accountIBANs = command.getAccounts();
+        double amount = command.getAmount();
+        String currency = command.getCurrency();
+        int timestamp = command.getTimestamp();
+
+        // Verificăm suma transferată
+        if (amount <= 0) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("description", "Invalid amount");
+            output.add(error);
+            return output;
+        }
+
+        // Calculăm suma care trebuie împărțită
+        double splitAmount = amount / accountIBANs.size();
+
+        // Obținem instanța ExchangeRateManager pentru a accesa ratele de schimb
+        ExchangeRateManager exchangeRateManager = ExchangeRateManager.getInstance();
+
+        // Iterăm prin conturi și procesăm fiecare cont destinat să primească o parte din sumă
+        for (String accountIBAN : accountIBANs) {
+            Account account = null;
+            User user = null;
+
+            // Căutăm utilizatorul și contul aferent IBAN-ului
+            for (User u : users) {
+                account = u.getAccountByIBAN(accountIBAN);
+                if (account != null) {
+                    user = u;
+                    break;
+                }
+            }
+
+            if (account == null) {
+                Map<String, Object> error = new HashMap<>();
+                error.put("description", "Account not found: " + accountIBAN);
+                output.add(error);
+                return output;
+            }
+
+            // Verificăm dacă moneda contului este aceeași cu moneda comenzii
+            double convertedAmount = splitAmount;
+            if (!currency.equalsIgnoreCase(account.getCurrency())) {
+                // Dacă monedele sunt diferite, aplicăm rata de schimb folosind ExchangeRateManager
+                try {
+                    convertedAmount = exchangeRateManager.convertCurrency(currency, account.getCurrency(), splitAmount, timestamp);
+                } catch (IllegalArgumentException e) {
+                    Map<String, Object> error = new HashMap<>();
+                    error.put("description", "Conversion rate not available for " + currency + " to " + account.getCurrency());
+                    output.add(error);
+                    return output;
+                }
+            }
+
+            // Verificăm dacă utilizatorul are suficienți bani
+            if (account.getBalance() < convertedAmount) {
+                Map<String, Object> error = new HashMap<>();
+                error.put("description", "Insufficient funds in account: " + accountIBAN);
+                output.add(error);
+                return output;
+            }
+
+            // Scădem suma din balance-ul contului
+            account.setBalance(account.getBalance() - convertedAmount);
+
+            // Creăm tranzacțiile
+            Transaction splitTransaction = new Transaction(
+                    timestamp,
+                    "Split payment",
+                    null,  // Expeditorul nu este relevant, este o împărțire
+                    accountIBAN,
+                    convertedAmount,
+                    account.getCurrency(),
+                    "received",
+                    null, null, null,
+                    accountIBANs,
+                    "splitPayment"
+            );
+
+            // Adăugăm tranzacția la utilizator
+            user.addTransaction(splitTransaction);
+        }
+
+        // Dacă totul a fost procesat cu succes, returnăm o listă goală
+        return Collections.emptyList();
+    }
+
+    private User getUserByAccountIBAN(String accountIBAN) {
+        for (User user : users) {  // Presupunând că users este o listă cu toți utilizatorii
+            for (Account account : user.getAccounts()) {
+                if (account.getIBAN().equals(accountIBAN)) {
+                    return user;
+                }
+            }
+        }
+        return null;  // Returnăm null dacă nu găsim utilizatorul cu IBAN-ul respectiv
+    }
 
     public void changeInterestRate(CommandInput command) {
         String targetIBAN = command.getAccount();
@@ -159,6 +261,7 @@ public class Bank {
                             cardNumber,
                             user.getEmail(),
                             null, // Commerciantul este null
+                            null,
                             "checkCardStatusFrozen" // Transaction type este "checkCardStatusFrozen"
                     );
                     user.addTransaction(transaction);
@@ -168,8 +271,6 @@ public class Bank {
         }
         return response;
     }
-
-
 
     private Account findAccountByCardNumber(User user, String cardNumber) {
         return user.getAccounts().stream()
@@ -275,6 +376,7 @@ public class Bank {
                     senderAccount.getCurrency(),
                     "error",
                     null, null, null,
+                    null,
                     "sendMoneyInsufficientFunds"
             );
             senderUser.addTransaction(insufficientFundsTransaction);
@@ -314,7 +416,7 @@ public class Bank {
                 receiverIBAN,
                 amount,
                 senderAccount.getCurrency(),
-                "sent", null, null, null,"sendMoney"
+                "sent", null, null, null, null, "sendMoney"
         );
 
         Transaction receiverTransaction = new Transaction(
@@ -324,7 +426,7 @@ public class Bank {
                 receiverIBAN,
                 convertedAmount,
                 receiverAccount.getCurrency(),
-                "received", null, null, null, "sendMoney"
+                "received", null, null, null, null, "sendMoney"
         );
 
         // Adăugăm tranzacțiile la utilizatori
@@ -421,6 +523,7 @@ public class Bank {
                     "payment", // Transfer Type
                     command.getCardNumber(), // Card Number
                     user.getEmail(), null, // Card Holder
+                    null,
                     "payOnlineInsufficentFunds" // Transaction Type
             );
             user.addTransaction(transaction1);
@@ -445,6 +548,7 @@ public class Bank {
                     command.getCardNumber(), // Card Number
                     user.getEmail(), // Card Holder
                     command.getCommerciant(), // Commerciant
+                    null,
                     "payOnlineCardIsFrozen" // Transaction Type
             );
 
@@ -466,6 +570,7 @@ public class Bank {
                 "payment", // Transfer Type
                 command.getCardNumber(), // Card Number
                 user.getEmail(), command.getCommerciant(), // Card Holder
+                null,
                 "payOnline" // Transaction Type
         );
 
@@ -517,7 +622,7 @@ public class Bank {
         String description = "New account created"; // Descrierea tranzacției
         String transferType = "other"; // Tipul tranzacției pentru crearea unui cont
         Transaction transaction = new Transaction(command.getTimestamp(), description, null, null,
-                0, command.getCurrency(), transferType, null, null, null, "addAccount");
+                0, command.getCurrency(), transferType, null, null, null, null,"addAccount");
 
         // Adăugăm tranzacția la utilizator
         user.addTransaction(transaction);
@@ -606,7 +711,7 @@ public class Bank {
                 0, // Amount
                 account.getCurrency(),
                 "other", cardNumber,
-                user.getEmail(), null,"createCard"
+                user.getEmail(), null, null, "createCard"
         );
 
         user.addTransaction(transaction);
@@ -648,7 +753,7 @@ public class Bank {
                 0, // Amount
                 account.getCurrency(),
                 "other", cardNumber,
-                user.getEmail(), null,"createCard"
+                user.getEmail(), null, null,"createCard"
         );
 
         // Adăugăm tranzacția utilizatorului
@@ -678,6 +783,7 @@ public class Bank {
                         "other",
                         card.getCardNumber(),
                         user.getEmail(),
+                        null,
                         null,
                         "deleteCard"
                 );

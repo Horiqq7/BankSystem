@@ -175,9 +175,8 @@ public final class Main {
                             responseNode.put("description", "Card not found");
                             responseNode.put("timestamp", command.getTimestamp());
 
-                            // Adăugăm direct în "output" obiectul de eroare
                             objectNode.set("output", responseNode);
-                            objectNode.put("timestamp", command.getTimestamp()); // Adăugăm timestamp-ul principal
+                            objectNode.put("timestamp", command.getTimestamp());
 
                             output.add(objectNode);
                         }
@@ -226,6 +225,9 @@ public final class Main {
                     bank.changeInterestRate(command); // Procesăm comanda, fără output
                 }
 
+                case "splitPayment" -> {
+                    bank.processCommand(command);
+                }
 
                 default -> {
                     objectNode.put("type", "error");

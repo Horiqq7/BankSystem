@@ -12,6 +12,7 @@ public class Account {
     private final List<Card> cards = new ArrayList<>();
     private List<Transaction> transactions = new ArrayList<>();
     private double interestRate;
+    private final List<String> involvedAccounts;
 
     public Account(String IBAN, String currency, String type) {
         this.IBAN = IBAN;
@@ -20,13 +21,14 @@ public class Account {
         this.balance = 0;
         this.minimumBalance = 0;
         this.interestRate = 0;
+        this.involvedAccounts = null;
     }
 
     public void addTransaction(String description, double amount, String senderIBAN, String receiverIBAN,
                                String transferType, String card, String cardHolder, String transactionType, String commerciant) {
         int timestamp = (int) (System.currentTimeMillis() / 1000); // Timestampul tranzacției
         Transaction transaction = new Transaction(timestamp, description, senderIBAN, receiverIBAN,
-                amount, currency, transferType, card, cardHolder, commerciant, transactionType); // Adăugăm field-ul "commerciant"
+                amount, currency, transferType, card, cardHolder, commerciant, involvedAccounts, transactionType); // Adăugăm field-ul "commerciant"
         transactions.add(transaction); // Adăugăm tranzacția în lista contului
     }
 
