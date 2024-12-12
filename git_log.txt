@@ -1,0 +1,29 @@
+commit d46d8cfd04f5e6a35f1c93be66b1f6da79ae6aed
+Author: Horia Rusu <horiarusu612@gmail.com>
+Date:   Thu Dec 12 01:06:19 2024 +0200
+
+    Am rezolvat si testul 15
+
+commit 0b63046b451db28d222d139f9896864abb5df25f
+Author: Horia Rusu <horiarusu612@gmail.com>
+Date:   Thu Dec 12 00:43:44 2024 +0200
+
+    Am reparat splitPayment
+
+commit 6bee77089688f46ec0b9a64d10ba768d72b8274f
+Author: Horia Rusu <horiarusu612@gmail.com>
+Date:   Wed Dec 11 23:00:43 2024 +0200
+
+    Am implementat partial splitPayment
+
+commit 0df028ae6ab8e1cff6a759dd89409dc8c9cc5fec
+Author: Horia Rusu <horiarusu612@gmail.com>
+Date:   Tue Dec 10 16:45:30 2024 +0200
+
+    Am adaugat in plus alte comenzi de baza, pana la splitPayment, si am modificat putin structura proiectului
+
+commit 2f211240be36b7563c445f4414d253bc22f5ef21
+Author: Horia Rusu <horiarusu612@gmail.com>
+Date:   Mon Dec 9 18:40:57 2024 +0200
+
+    Am implementat logica de baza a sistemului de banking, pana la taskul 10 inclusiv

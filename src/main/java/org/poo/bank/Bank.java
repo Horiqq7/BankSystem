@@ -76,6 +76,14 @@ public class Bank {
             case "splitPayment": // Adăugăm cazul pentru splitPayment
                 splitPayment(command);
                 return Collections.emptyList();
+            case "report":
+                Map<String, Object> reportResponse = generateReport(command);
+                if (reportResponse.containsKey("output")) {
+                    return Collections.singletonList(reportResponse);
+                } else {
+                    return Collections.emptyList(); // Niciun răspuns dacă nu există output
+                }
+
             default:
                 throw new IllegalArgumentException("Unknown command: " + command.getCommand());
         }
@@ -101,6 +109,63 @@ public class Bank {
         }
         return outputTransactions;
     }
+
+    public Map<String, Object> generateReport(CommandInput command) {
+        // Obținem datele din input
+        String accountIBAN = command.getAccount();
+        int startTimestamp = command.getStartTimestamp();
+        int endTimestamp = command.getEndTimestamp();
+        int timestamp = (int) (System.currentTimeMillis() / 1000); // Folosim timpul curent dacă nu e oferit
+
+        // Căutăm contul corespunzător
+        Account account = null;
+        for (User user : users) {
+            account = user.getAccountByIBAN(accountIBAN);
+            if (account != null) {
+                break;
+            }
+        }
+
+        if (account == null) {
+            // Dacă contul nu există, returnăm o eroare
+            return Map.of(
+                    "error", Map.of("description", "Account not found: " + accountIBAN)
+            );
+        }
+
+        // Filtrăm tranzacțiile pe baza intervalului și, dacă e cazul, tipului de cont
+        List<Transaction> transactions = account.getTransactions();
+        List<Map<String, Object>> filteredTransactions = new ArrayList<>();
+        for (Transaction transaction : transactions) {
+            boolean isInTimeRange = transaction.getTimestamp() >= startTimestamp && transaction.getTimestamp() <= endTimestamp;
+            boolean isValidTransaction = true;
+
+            // Dacă e un cont de economii, filtrăm doar tranzacțiile relevante
+            if ("savings".equals(account.getType())) {
+                isValidTransaction = "interest".equals(transaction.getTransactionType());
+            }
+
+            if (isInTimeRange && isValidTransaction) {
+                filteredTransactions.add(transaction.toMap());
+            }
+        }
+
+        // Creăm structura raportului
+        Map<String, Object> reportDetails = new HashMap<>();
+        reportDetails.put("IBAN", accountIBAN);
+        reportDetails.put("balance", account.getBalance());
+        reportDetails.put("currency", account.getCurrency());
+        reportDetails.put("transactions", filteredTransactions); // Adăugăm tranzacțiile filtrate
+
+        // Output-ul final
+        return Map.of(
+                "command", "report",
+                "timestamp", command.getTimestamp(),
+                "output", reportDetails
+        );
+    }
+
+
 
     public List<Map<String, Object>> splitPayment(CommandInput command) {
         List<Map<String, Object>> output = new ArrayList<>();
@@ -408,7 +473,6 @@ public class Bank {
         senderAccount.withdrawFunds(amount);
         receiverAccount.addFunds(convertedAmount);
 
-        // Creăm obiectele Transaction cu format corect
         Transaction senderTransaction = new Transaction(
                 timestamp,
                 description,
@@ -429,9 +493,12 @@ public class Bank {
                 "received", null, null, null, null, "sendMoney"
         );
 
-        // Adăugăm tranzacțiile la utilizatori
         senderUser.addTransaction(senderTransaction);
+        senderAccount.addTransaction(senderTransaction);
+
         receiverUser.addTransaction(receiverTransaction);
+        receiverAccount.addTransaction(receiverTransaction);
+
 
         // Întoarcem o listă goală pentru succes
         return Collections.emptyList();
@@ -560,25 +627,25 @@ public class Bank {
         }
 
         // Creăm tranzacția folosind clasa Transaction
+        account.withdrawFunds(amount);
         Transaction transaction = new Transaction(
                 command.getTimestamp(),
                 "Card payment",
-                account.getIBAN(), // Sender IBAN
-                command.getCommerciant(), // Receiver IBAN (comerciantul)
+                account.getIBAN(),
+                command.getCommerciant(),
                 amount,
                 account.getCurrency(),
-                "payment", // Transfer Type
-                command.getCardNumber(), // Card Number
-                user.getEmail(), command.getCommerciant(), // Card Holder
+                "payment",
+                command.getCardNumber(),
+                user.getEmail(),
+                command.getCommerciant(),
                 null,
-                "payOnline" // Transaction Type
+                "payOnline"
         );
 
-        // Adăugăm tranzacția utilizatorului
         user.addTransaction(transaction);
+        account.addTransaction(transaction);
 
-        // Reducem balanța contului
-        account.withdrawFunds(amount);
 
         // Nu adăugăm nimic în output în cazul unui succes
         return Collections.emptyList(); // succes
@@ -621,12 +688,26 @@ public class Bank {
         // Înregistrăm tranzacția de creare a contului
         String description = "New account created"; // Descrierea tranzacției
         String transferType = "other"; // Tipul tranzacției pentru crearea unui cont
-        Transaction transaction = new Transaction(command.getTimestamp(), description, null, null,
-                0, command.getCurrency(), transferType, null, null, null, null,"addAccount");
+        Transaction transaction = new Transaction(
+                command.getTimestamp(),
+                description,
+                null, // Sender IBAN
+                iban, // Receiver IBAN
+                0, // Suma tranzacției (0 pentru creare cont)
+                command.getCurrency(), // Moneda
+                transferType,
+                null, // Card (nu este aplicabil)
+                null, // Deținător card (nu este aplicabil)
+                null, // Comerciant (nu este aplicabil)
+                null, // Conturi implicate
+                "addAccount" // Tipul tranzacției
+        );
 
-        // Adăugăm tranzacția la utilizator
+        // Adăugăm tranzacția atât la utilizator, cât și la cont
         user.addTransaction(transaction);
+        account.addTransaction(transaction); // SINCRONIZARE TRANZACȚIE CU CONTUL
     }
+
 
     public Map<String, Object> deleteAccount(CommandInput command) {
         String iban = command.getAccount();
@@ -678,7 +759,22 @@ public class Bank {
             if (account != null) {
                 // Adăugăm suma la balance-ul contului găsit
                 account.addFunds(amount);
-                return;  // Oprirea căutării odată ce am găsit contul
+                Transaction transaction = new Transaction(
+                        (int) (System.currentTimeMillis() / 1000),
+                        "Funds added",
+                        null,
+                        iban,
+                        amount,
+                        account.getCurrency(),
+                        "addFunds",
+                        null,
+                        null,
+                        null,
+                        null,
+                        "addFunds"
+                );
+                account.addTransaction(transaction);
+                // Oprirea căutării odată ce am găsit contul
             }
         }
 
@@ -718,47 +814,46 @@ public class Bank {
     }
 
     public void createCard(CommandInput command) {
+        // Găsim utilizatorul pe baza email-ului
         User user = findUserByEmail(command.getEmail());
         if (user == null) {
-            return;
+            return; // Ieșim dacă utilizatorul nu există
         }
 
+        // Găsim contul asociat utilizatorului
         Account account = user.getAccountByIBAN(command.getAccount());
         if (account == null) {
-            return;
+            return; // Ieșim dacă contul nu există
         }
 
-        String description;
-        String cardNumber;
+        // Generăm detaliile cardului
+        String cardNumber = Utils.generateCardNumber();
+        Card card = new Card(cardNumber, "active");
 
-         // if ("createCard".equals(command.getCommand())) {
-            cardNumber = Utils.generateCardNumber();
-            Card card = new Card(cardNumber, "active");
-            account.addCard(card);
-            description = "New card created";
-//        } else if ("createOneTimeCard".equals(command.getCommand())) {
-//            cardNumber = Utils.generateCardNumber();
-//            OneTimeCard oneTimeCard = new OneTimeCard(cardNumber, "active");
-//            account.addCard(oneTimeCard);
-//            description = "New one-time card created";
-//        } else {
-//            return;
-//        }
+        // Adăugăm cardul la cont
+        account.addCard(card);
 
+        // Creăm tranzacția asociată adăugării cardului
         Transaction transaction = new Transaction(
                 command.getTimestamp(),
-                description,
-                null, // Sender IBAN
-                account.getIBAN(), // Receiver IBAN
-                0, // Amount
+                "New card created", // Descrierea tranzacției
+                null, // Sender IBAN (nu există)
+                account.getIBAN(), // Receiver IBAN (contul asociat)
+                0, // Suma tranzacției (0 pentru crearea cardului)
                 account.getCurrency(),
-                "other", cardNumber,
-                user.getEmail(), null, null,"createCard"
+                "other", // Tipul transferului
+                cardNumber, // Numărul cardului
+                user.getEmail(), // Deținătorul cardului
+                null, // Comerciant (nu este aplicabil)
+                null, // Conturi implicate
+                "createCard" // Tipul tranzacției
         );
 
-        // Adăugăm tranzacția utilizatorului
+        // Adăugăm tranzacția atât la utilizator, cât și la cont
         user.addTransaction(transaction);
+        account.addTransaction(transaction);
     }
+
 
 
     public void deleteCard(CommandInput command) {
@@ -796,13 +891,29 @@ public class Bank {
     }
 
     public void addAccount(Account account) {
+        // Adăugăm contul în lista de conturi
         accounts.put(account.getIBAN(), account);
+
+        // Creăm tranzacția asociată adăugării unui cont nou
+        Transaction transaction = new Transaction(
+                (int) (System.currentTimeMillis() / 1000), // Timpul tranzacției
+                "New account created", // Descrierea tranzacției
+                null, // Sender IBAN (nu este aplicabil)
+                account.getIBAN(), // Receiver IBAN (IBAN-ul contului creat)
+                0, // Suma tranzacției (0 pentru creare cont)
+                account.getCurrency(), // Moneda contului
+                "other", // Tipul transferului
+                null, // Card (nu este aplicabil)
+                null, // Deținătorul cardului
+                null, // Comerciant (nu este aplicabil)
+                null, // Conturi implicate
+                "addAccount" // Tipul tranzacției
+        );
+
+        // Salvăm tranzacția la nivelul contului
+        account.addTransaction(transaction);
     }
 
-    // Metodă pentru a obține un cont pe baza IBAN-ului
-    public Account getAccount(String iban) {
-        return accounts.get(iban);
-    }
 
     public User findUserByEmail(String email) {
         return users.stream()

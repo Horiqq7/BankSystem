@@ -229,6 +229,21 @@ public final class Main {
                     bank.processCommand(command);
                 }
 
+                case "report" -> {
+                    Map<String, Object> response = bank.generateReport(command);
+
+                    if (response.containsKey("output")) {
+                        ObjectNode objectNodeReport = objectMapper.createObjectNode();
+
+                        objectNodeReport.put("command", response.get("command").toString());
+                        objectNodeReport.set("output", objectMapper.valueToTree(response.get("output")));
+                        objectNodeReport.put("timestamp", Integer.parseInt(response.get("timestamp").toString()));
+
+                        output.add(objectNodeReport);
+                    }
+                }
+
+
                 default -> {
                     objectNode.put("type", "error");
                     objectNode.put("message", "Unknown command: " + command.getCommand());

@@ -112,6 +112,7 @@ public class Transaction {
         return map;
     }
 
+
     public String getCard() {
         return card;
     }

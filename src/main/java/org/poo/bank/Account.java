@@ -10,7 +10,7 @@ public class Account {
     private final String currency;
     private final String type;
     private final List<Card> cards = new ArrayList<>();
-    private List<Transaction> transactions = new ArrayList<>();
+    private final List<Transaction> transactions = new ArrayList<>();
     private double interestRate;
     private final List<String> involvedAccounts;
 
@@ -24,12 +24,9 @@ public class Account {
         this.involvedAccounts = null;
     }
 
-    public void addTransaction(String description, double amount, String senderIBAN, String receiverIBAN,
-                               String transferType, String card, String cardHolder, String transactionType, String commerciant) {
-        int timestamp = (int) (System.currentTimeMillis() / 1000); // Timestampul tranzacției
-        Transaction transaction = new Transaction(timestamp, description, senderIBAN, receiverIBAN,
-                amount, currency, transferType, card, cardHolder, commerciant, involvedAccounts, transactionType); // Adăugăm field-ul "commerciant"
-        transactions.add(transaction); // Adăugăm tranzacția în lista contului
+    // Adăugăm o tranzacție la lista contului
+    public void addTransaction(Transaction transaction) {
+        transactions.add(transaction);
     }
 
     public void setInterestRate(double newInterestRate) {
@@ -58,13 +55,41 @@ public class Account {
     public void addFunds(double amount) {
         if (amount > 0) {
             this.balance += amount;
-            addTransaction("Funds added", amount, null, IBAN, "other", null, null, "addFunds", null); // Modifică pentru a include "commerciant"
+            Transaction transaction = new Transaction(
+                    (int) (System.currentTimeMillis() / 1000),
+                    "Funds added",
+                    null,
+                    IBAN,
+                    amount,
+                    currency,
+                    "addFunds",
+                    null,
+                    null,
+                    null,
+                    null,
+                    "addFunds"
+            );
+            addTransaction(transaction);
         }
     }
 
     public void addCard(Card card) {
         cards.add(card);
-        addTransaction("Card added", 0, null, IBAN, "other", card.getCardNumber(), null, "addCard", null); // Modifică pentru a include "commerciant"
+        Transaction transaction = new Transaction(
+                (int) (System.currentTimeMillis() / 1000),
+                "Card added",
+                null,
+                IBAN,
+                0,
+                currency,
+                "addCard",
+                card.getCardNumber(),
+                null,
+                null,
+                null,
+                "addCard"
+        );
+        addTransaction(transaction);
     }
 
     public Card getCardByNumber(String cardNumber) {
@@ -77,7 +102,21 @@ public class Account {
     public void withdrawFunds(double amount) {
         if (this.balance >= amount) {
             this.balance -= amount;
-            addTransaction("Funds withdrawn", -amount, IBAN, null, "sent", null, null, "withdrawFunds", null); // Modifică pentru a include "commerciant"
+            Transaction transaction = new Transaction(
+                    (int) (System.currentTimeMillis() / 1000),
+                    "Funds withdrawn",
+                    IBAN,
+                    null,
+                    -amount,
+                    currency,
+                    "withdrawFunds",
+                    null,
+                    null,
+                    null,
+                    null,
+                    "withdrawFunds"
+            );
+            addTransaction(transaction);
         } else {
             throw new IllegalArgumentException("Insufficient funds");
         }
@@ -93,7 +132,21 @@ public class Account {
 
     public void removeCard(Card card) {
         cards.remove(card);
-        addTransaction("Card removed", 0, null, IBAN, "other", card.getCardNumber(), null, "removeCard", null); // Modifică pentru a include "commerciant"
+        Transaction transaction = new Transaction(
+                (int) (System.currentTimeMillis() / 1000),
+                "Card removed",
+                null,
+                IBAN,
+                0,
+                currency,
+                "removeCard",
+                card.getCardNumber(),
+                null,
+                null,
+                null,
+                "removeCard"
+        );
+        addTransaction(transaction);
     }
 
     public double getBalance() {
@@ -126,4 +179,3 @@ public class Account {
         return map;
     }
 }
-
