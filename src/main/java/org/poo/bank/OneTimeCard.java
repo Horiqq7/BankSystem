@@ -12,9 +12,6 @@ public class OneTimeCard extends Card {
     }
 
     public void useCard() {
-        if (!used) {
-            used = true;
-            this.setStatus("used");  // Schimbăm statusul cardului
-        }
+        this.setStatus("used"); // Schimbăm statusul după utilizare
     }
 }

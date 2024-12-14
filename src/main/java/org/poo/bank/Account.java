@@ -24,6 +24,24 @@ public class Account {
         this.involvedAccounts = null;
     }
 
+    public Map<String, Double> getSpendingByCommerciants(int startTimestamp, int endTimestamp) {
+        Map<String, Double> spendingByCommerciants = new HashMap<>();
+
+        for (Transaction transaction : transactions) {
+            if (transaction.getTimestamp() >= startTimestamp
+                    && transaction.getTimestamp() <= endTimestamp
+                    && "payOnline".equals(transaction.getTransactionType())) {
+
+                String commerciant = transaction.getCommerciant();
+                spendingByCommerciants.put(commerciant,
+                        spendingByCommerciants.getOrDefault(commerciant, 0.0) + transaction.getAmount());
+            }
+        }
+
+        return spendingByCommerciants;
+    }
+
+
     // Adăugăm o tranzacție la lista contului
     public void addTransaction(Transaction transaction) {
         transactions.add(transaction);
@@ -51,6 +69,49 @@ public class Account {
     public void removeAllCards() {
         this.cards.clear();
     }
+
+    public Map<String, Object> generateSpendingsReport(int startTimestamp, int endTimestamp) {
+        // Filtrăm tranzacțiile care aparțin intervalului și sunt de tip "payment"
+        List<Transaction> filteredTransactions = transactions.stream()
+                .filter(t -> t.getTimestamp() >= startTimestamp
+                        && t.getTimestamp() <= endTimestamp
+                        && "payOnline".equals(t.getTransactionType()))
+                .collect(Collectors.toList());
+
+        // Grupăm tranzacțiile după commerciant și calculăm totalurile
+        Map<String, Double> commerciantsTotals = filteredTransactions.stream()
+                .filter(t -> t.getCommerciant() != null)
+                .collect(Collectors.groupingBy(
+                        Transaction::getCommerciant,
+                        Collectors.summingDouble(Transaction::getAmount)
+                ));
+
+        // Generăm o listă de comercianți cu totalurile corespunzătoare
+        List<Map<String, Object>> commerciantsList = commerciantsTotals.entrySet().stream()
+                .map(entry -> {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("commerciant", entry.getKey());
+                    map.put("total", entry.getValue());
+                    return map;
+                })
+                .collect(Collectors.toList());
+
+        // Conversia tranzacțiilor filtrate într-o listă de hărți
+        List<Map<String, Object>> transactionsList = filteredTransactions.stream()
+                .map(Transaction::toMap)
+                .collect(Collectors.toList());
+
+        // Creăm raportul final
+        Map<String, Object> report = new HashMap<>();
+        report.put("IBAN", IBAN);
+        report.put("balance", balance);
+        report.put("currency", currency);
+        report.put("transactions", transactionsList); // Lista tranzacțiilor
+        report.put("commerciants", commerciantsList); // Lista comercianților
+
+        return report;
+    }
+
 
     public void addFunds(double amount) {
         if (amount > 0) {

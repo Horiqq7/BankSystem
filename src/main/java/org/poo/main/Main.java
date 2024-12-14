@@ -231,17 +231,38 @@ public final class Main {
 
                 case "report" -> {
                     Map<String, Object> response = bank.generateReport(command);
+                    var objectNodeReport = objectMapper.createObjectNode();
+                    objectNodeReport.put("command", response.get("command").toString());
+                    objectNodeReport.put("timestamp", Integer.parseInt(response.get("timestamp").toString()));
 
                     if (response.containsKey("output")) {
-                        ObjectNode objectNodeReport = objectMapper.createObjectNode();
-
-                        objectNodeReport.put("command", response.get("command").toString());
                         objectNodeReport.set("output", objectMapper.valueToTree(response.get("output")));
-                        objectNodeReport.put("timestamp", Integer.parseInt(response.get("timestamp").toString()));
+                    } else {
+                        var errorNode = objectMapper.createObjectNode();
+                        errorNode.put("description", "Account not found");
+                        errorNode.put("timestamp", command.getTimestamp());
+                        objectNodeReport.set("output", errorNode);
+                    }
 
-                        output.add(objectNodeReport);
+                    output.add(objectNodeReport);
+                }
+
+
+                case "spendingsReport" -> {
+                    List<Map<String, Object>> response = bank.processCommand(command);
+
+                    if (!response.isEmpty()) {
+                        for (Map<String, Object> line : response) {
+                            ObjectNode responseNode = objectMapper.createObjectNode();
+                            responseNode.put("command", line.get("command").toString());
+                            responseNode.set("output", objectMapper.valueToTree(line.get("output")));
+                            responseNode.put("timestamp", Integer.parseInt(line.get("timestamp").toString()));
+
+                            output.add(responseNode);
+                        }
                     }
                 }
+
 
 
                 default -> {

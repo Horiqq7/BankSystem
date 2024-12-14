@@ -78,11 +78,9 @@ public class Bank {
                 return Collections.emptyList();
             case "report":
                 Map<String, Object> reportResponse = generateReport(command);
-                if (reportResponse.containsKey("output")) {
-                    return Collections.singletonList(reportResponse);
-                } else {
-                    return Collections.emptyList(); // Niciun răspuns dacă nu există output
-                }
+                return Collections.singletonList(reportResponse);
+            case "spendingsReport":
+                return spendingsReport(command);
 
             default:
                 throw new IllegalArgumentException("Unknown command: " + command.getCommand());
@@ -110,12 +108,12 @@ public class Bank {
         return outputTransactions;
     }
 
-    public Map<String, Object> generateReport(CommandInput command) {
-        // Obținem datele din input
+
+    public List<Map<String, Object>> spendingsReport(CommandInput command) {
         String accountIBAN = command.getAccount();
         int startTimestamp = command.getStartTimestamp();
         int endTimestamp = command.getEndTimestamp();
-        int timestamp = (int) (System.currentTimeMillis() / 1000); // Folosim timpul curent dacă nu e oferit
+        int currentTimestamp = command.getTimestamp();
 
         // Căutăm contul corespunzător
         Account account = null;
@@ -128,8 +126,62 @@ public class Bank {
 
         if (account == null) {
             // Dacă contul nu există, returnăm o eroare
+            return List.of(Map.of(
+                    "command", "spendingsReport",
+                    "error", "Account not found: " + accountIBAN,
+                    "timestamp", currentTimestamp
+            ));
+        }
+
+        // Generăm raportul pentru cheltuieli
+        Map<String, Object> report = account.generateSpendingsReport(startTimestamp, endTimestamp);
+
+        // Ordonați comercianții alfabetic, punând literele mari înaintea celor mici
+        List<Map<String, Object>> commerciants = (List<Map<String, Object>>) report.get("commerciants");
+        if (commerciants != null) {
+            // Sortare personalizată: litere mari înaintea celor mici
+            commerciants.sort((a, b) -> {
+                String firstCommerciant = (String) a.get("commerciant");
+                String secondCommerciant = (String) b.get("commerciant");
+
+                // Comparăm literele mari (A-Z) înainte de cele mici (a-z)
+                return firstCommerciant.compareTo(secondCommerciant);
+            });
+        }
+
+        // Returnăm rezultatul
+        return List.of(Map.of(
+                "command", "spendingsReport",
+                "output", report,
+                "timestamp", currentTimestamp
+        ));
+    }
+
+    public Map<String, Object> generateReport(CommandInput command) {
+        // Obținem datele din input
+        String accountIBAN = command.getAccount();
+        int startTimestamp = command.getStartTimestamp();
+        int endTimestamp = command.getEndTimestamp();
+        int timestamp = command.getTimestamp(); // Folosim timpul curent dacă nu e oferit
+
+        // Căutăm contul corespunzător
+        Account account = null;
+        for (User user : users) {
+            account = user.getAccountByIBAN(accountIBAN);
+            if (account != null) {
+                break;
+            }
+        }
+
+        if (account == null) {
+            // Dacă contul nu există, returnăm un mesaj de eroare
             return Map.of(
-                    "error", Map.of("description", "Account not found: " + accountIBAN)
+                    "command", "report",
+                    "timestamp", timestamp,
+                    "output", Map.of(
+                            "description", "Account not found",
+                            "timestamp", timestamp
+                    )
             );
         }
 
@@ -160,7 +212,7 @@ public class Bank {
         // Output-ul final
         return Map.of(
                 "command", "report",
-                "timestamp", command.getTimestamp(),
+                "timestamp", timestamp,
                 "output", reportDetails
         );
     }
@@ -646,12 +698,37 @@ public class Bank {
         user.addTransaction(transaction);
         account.addTransaction(transaction);
 
+        if (card instanceof OneTimeCard) {
+            // Schimbăm numărul cardului existent
+            String newCardNumber = Utils.generateCardNumber();
+            card.setCardNumber(newCardNumber); // Schimbă numărul cardului existent
+            card.setStatus("active"); // Setăm cardul înapoi la statusul "active"
+
+            // Nu mai creăm un nou card, doar actualizăm numărul
+            System.out.println("Card " + card.getCardNumber() + " a fost actualizat.");
+
+            // Înregistrăm tranzacția de actualizare a cardului
+            Transaction newCardTransaction = new Transaction(
+                    command.getTimestamp() + 1, // Incrementăm timestamp-ul pentru actualizarea cardului
+                    "One-time card reused",
+                    null, // Sender IBAN
+                    account.getIBAN(), // Receiver IBAN
+                    0, // Amount
+                    account.getCurrency(),
+                    "other",
+                    newCardNumber,
+                    user.getEmail(),
+                    null,
+                    null,
+                    "reuseOneTimeCard" // Transaction Type pentru reutilizare
+            );
+            user.addTransaction(newCardTransaction);
+            account.addTransaction(newCardTransaction);
+        }
 
         // Nu adăugăm nimic în output în cazul unui succes
         return Collections.emptyList(); // succes
     }
-
-
 
     public void setMinimumBalance(CommandInput command) {
         String iban = command.getAccount();
@@ -781,7 +858,9 @@ public class Bank {
     }
 
     public void createOneTimeCard(CommandInput command) {
-        User  user = findUserByEmail(command.getEmail());
+
+        System.out.println("am intrat aici " + command.getTimestamp());
+        User user = findUserByEmail(command.getEmail());
         if (user == null) {
             return;
         }
@@ -795,9 +874,12 @@ public class Bank {
         String cardNumber;
 
         cardNumber = Utils.generateCardNumber();
-        Card card = new Card(cardNumber, "active");
-        account.addCard(card);
+        // Creează un card de tip OneTimeCard, nu Card generic
+        OneTimeCard card = new OneTimeCard(cardNumber, "active");
+        account.addCard(card); // Adaugă cardul OneTimeCard
         description = "New card created";
+
+        System.out.println("generez cardul" + card.getCardNumber());
 
         Transaction transaction = new Transaction(
                 command.getTimestamp(),

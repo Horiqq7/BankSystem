@@ -4,12 +4,16 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class Card {
-    private final String cardNumber;
+    private String cardNumber;
     private String status;
 
     public Card(String cardNumber, String status) {
         this.cardNumber = cardNumber;
         this.status = status;
+    }
+
+    public void setCardNumber(String cardNumber) {
+        this.cardNumber = cardNumber;
     }
 
     public String getCardNumber() {
