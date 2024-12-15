@@ -128,6 +128,7 @@ public class Account {
                     null,
                     null,
                     null,
+                    null,
                     "addFunds"
             );
             addTransaction(transaction);
@@ -145,6 +146,7 @@ public class Account {
                 currency,
                 "addCard",
                 card.getCardNumber(),
+                null,
                 null,
                 null,
                 null,
@@ -171,6 +173,7 @@ public class Account {
                     -amount,
                     currency,
                     "withdrawFunds",
+                    null,
                     null,
                     null,
                     null,
@@ -202,6 +205,7 @@ public class Account {
                 currency,
                 "removeCard",
                 card.getCardNumber(),
+                null,
                 null,
                 null,
                 null,

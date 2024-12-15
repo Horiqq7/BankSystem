@@ -222,8 +222,21 @@ public final class Main {
                 }
 
                 case "changeInterestRate" -> {
-                    bank.changeInterestRate(command); // Procesăm comanda, fără output
+                    List<Map<String, Object>> response = bank.changeInterestRate(command);
+
+                    // Procesăm doar erorile, fără să adăugăm nimic la output în caz de succes
+                    if (!response.isEmpty()) {
+                        for (Map<String, Object> line : response) {
+                            ObjectNode responseNode = objectMapper.createObjectNode();
+                            responseNode.put("command", line.get("command").toString());
+                            responseNode.set("output", objectMapper.valueToTree(line.get("output")));
+                            responseNode.put("timestamp", Integer.parseInt(line.get("timestamp").toString()));
+
+                            output.add(responseNode);
+                        }
+                    }
                 }
+
 
                 case "splitPayment" -> {
                     bank.processCommand(command);
@@ -255,13 +268,32 @@ public final class Main {
                         for (Map<String, Object> line : response) {
                             ObjectNode responseNode = objectMapper.createObjectNode();
                             responseNode.put("command", line.get("command").toString());
-                            responseNode.set("output", objectMapper.valueToTree(line.get("output")));
-                            responseNode.put("timestamp", Integer.parseInt(line.get("timestamp").toString()));
 
+                            // Procesăm ieșirea "output"
+                            if (line.get("output") != null) {
+                                responseNode.set("output", objectMapper.valueToTree(line.get("output")));
+                            }
+
+                            responseNode.put("timestamp", Integer.parseInt(line.get("timestamp").toString()));
                             output.add(responseNode);
                         }
                     }
                 }
+
+
+                case "addInterest" -> { // Cazul pentru addInterest
+                    List<Map<String, Object>> interestResponse = bank.processCommand(command);
+                    if (!interestResponse.isEmpty()) {
+                        for (Map<String, Object> line : interestResponse) {
+                            ObjectNode responseNode = objectMapper.createObjectNode();
+                            responseNode.put("command", line.get("command").toString());
+                            responseNode.set("output", objectMapper.valueToTree(line.get("output")));
+                            responseNode.put("timestamp", Integer.parseInt(line.get("timestamp").toString()));
+                            output.add(responseNode);
+                        }
+                    }
+                }
+
 
 
 

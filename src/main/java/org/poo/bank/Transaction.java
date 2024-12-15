@@ -17,10 +17,11 @@ public class Transaction {
     private final String transactionType;
     private final String commerciant;
     private final List<String> involvedAccounts;
+    private final String error;
 
     public Transaction(int timestamp, String description, String senderIBAN, String receiverIBAN,
                        double amount, String currency, String transferType, String card, String cardHolder, String commerciant,
-                       List<String> involvedAccounts, String transactionType) {
+                       List<String> involvedAccounts, String error, String transactionType) {
         this.timestamp = timestamp;
         this.description = description;
         this.senderIBAN = senderIBAN;
@@ -33,6 +34,7 @@ public class Transaction {
         this.commerciant = commerciant;
         this.involvedAccounts = involvedAccounts;
         this.transactionType = transactionType;
+        this.error = error;
     }
 
     public List<String> getInvolvedAccounts() {
@@ -105,6 +107,15 @@ public class Transaction {
                 map.put("currency", currency);
                 map.put("involvedAccounts", involvedAccounts);  // IBAN-uri de destinație
                 map.put("amount", amount); // Aici, trebuie să păstrăm suma ca un număr (fără ghilimele)
+                break;
+            case "splitPaymentError":
+                map.put("timestamp", timestamp);
+                map.put("description", description);
+                map.put("currency", currency);
+//                map.put("contul cu probleme", receiverIBAN);
+                map.put("involvedAccounts", involvedAccounts);
+                map.put("amount", amount);
+                map.put("error", error);  // Descrierea erorii
                 break;
             default:
                 break;
