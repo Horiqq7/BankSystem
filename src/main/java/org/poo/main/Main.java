@@ -4,15 +4,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import org.poo.bank.Account;
-import org.poo.bank.Card;
+import org.poo.bank.commands.PrintTransactions;
+import org.poo.bank.commands.Report;
+import org.poo.bank.commands.CheckCardStatus;
 import org.poo.checker.Checker;
 import org.poo.checker.CheckerConstants;
-import org.poo.commerciant.Commerciant;
 import org.poo.fileio.CommandInput;
 import org.poo.fileio.ObjectInput;
 import org.poo.bank.Bank;
-import org.poo.operations.ExchangeRate;
 import org.poo.operations.ExchangeRateManager;
 import org.poo.users.User;
 import org.poo.utils.Utils;
@@ -121,53 +120,32 @@ public final class Main {
                     objectNode.set("output", usersOutput);
                     output.add(objectNode);
                 }
-                case "addAccount", "createCard", "addFunds" -> {
-                    bank.processCommand(command); // Procesăm comanda dar nu adăugăm nimic în output
+                case "addAccount", "createCard", "addFunds", "createOneTimeCard", "deleteCard", "setMinimumBalance", "setAlias" -> {
+                    bank.processCommand(command);
                 }
                 case "deleteAccount" -> {
-                    // Procesăm comanda de ștergere a contului
-                    Map<String, Object> deleteAccountResponse = bank.deleteAccount(command);
-
-                    // Creăm nodul principal pentru răspuns
+                    Map<String, Object> deleteAccountResponse = bank.processCommand(command).get(0); // Obține rezultatul
                     var responseNode = objectMapper.createObjectNode();
                     responseNode.put("command", command.getCommand());
                     responseNode.put("timestamp", command.getTimestamp());
 
-                    // Dacă există un mesaj de eroare, îl adăugăm în răspuns
                     if (deleteAccountResponse.containsKey("error")) {
                         var errorNode = objectMapper.createObjectNode();
                         errorNode.put("error", deleteAccountResponse.get("error").toString());
                         errorNode.put("timestamp", command.getTimestamp());
-
                         responseNode.set("output", errorNode);
                     } else {
-                        // Dacă ștergerea a fost un succes, adăugăm răspunsul de succes
                         var successNode = objectMapper.createObjectNode();
                         successNode.put("success", "Account deleted");
                         successNode.put("timestamp", command.getTimestamp());
-
                         responseNode.set("output", successNode);
                     }
 
-                    // Adăugăm obiectul complet în output
                     output.add(responseNode);
                 }
 
-
-                case "createOneTimeCard" -> {
-                    bank.processCommand(command);
-                }
-
-                case "deleteCard" -> {
-                    bank.processCommand(command); // Procesăm comanda, dar nu adăugăm nimic în output
-                }
-
-                case "setMinimumBalance" -> {
-                    bank.processCommand(command);
-                }
-
                 case "payOnline" -> {
-                    List<Map<String, Object>> response = bank.payOnline(command);
+                    List<Map<String, Object>> response = bank.processCommand(command);
                     if (!response.isEmpty()) { // Adăugăm doar dacă există erori sau mesaje de problemă
                         // Iterăm prin fiecare eroare și adăugăm direct în nodul "output"
                         for (Map<String, Object> line : response) {
@@ -185,7 +163,7 @@ public final class Main {
 
                 case "sendMoney" -> {
                     try {
-                        bank.sendMoney(command);
+                        bank.processCommand(command);
                     } catch (IllegalArgumentException e) {
                         var errorNode = objectMapper.createObjectNode();
                         errorNode.put("description", e.getMessage());
@@ -195,12 +173,17 @@ public final class Main {
                     }
                 }
 
-                case "setAlias" -> {
-                    bank.processCommand(command);
-                }
 
                 case "printTransactions" -> {
-                    var transactions = bank.printTransactions(command);
+                    // Extrage lista de utilizatori din obiectul Bank
+                    List<User> users = bank.getUsers();
+
+                    // Creăm instanța de PrintTransactions cu lista de utilizatori
+                    PrintTransactions printTransactionsProcessor = new PrintTransactions(users);
+
+                    // Apoi apelăm metoda printTransactions
+                    var transactions = printTransactionsProcessor.printTransactions(command);
+
                     // Setează doar tranzacțiile ca output, fără a adăuga structuri suplimentare
                     objectNode.set("output", objectMapper.valueToTree(transactions));
                     output.add(objectNode);
@@ -208,21 +191,22 @@ public final class Main {
 
 
                 case "checkCardStatus" -> {
-                    Map<String, Object> response = bank.checkCardStatus(command);
+                    CheckCardStatus checkCardStatus = new CheckCardStatus();
+                    Map<String, Object> checkCardStatusResponse = checkCardStatus.execute(command, bank.getUsers());
 
-                    if (response.containsKey("output")) {
-                        ObjectNode objectNodeCheckCardStatus = objectMapper.createObjectNode();
+                    if (!checkCardStatusResponse.isEmpty()) {
+                        ObjectNode responseNode = objectMapper.createObjectNode();
+                        responseNode.put("command", checkCardStatusResponse.get("command").toString());
+                        responseNode.set("output", objectMapper.valueToTree(checkCardStatusResponse.get("output")));
+                        responseNode.put("timestamp", Integer.parseInt(checkCardStatusResponse.get("timestamp").toString()));
 
-                        objectNodeCheckCardStatus .put("command", response.get("command").toString());
-                        objectNodeCheckCardStatus .set("output", objectMapper.valueToTree(response.get("output")));
-                        objectNodeCheckCardStatus .put("timestamp", Integer.parseInt(response.get("timestamp").toString()));
-
-                        output.add(objectNodeCheckCardStatus);
+                        output.add(responseNode); // Adăugăm răspunsul în output
                     }
                 }
 
+
                 case "changeInterestRate" -> {
-                    List<Map<String, Object>> response = bank.changeInterestRate(command);
+                    List<Map<String, Object>> response = bank.processCommand(command); // Apelăm processCommand pentru a obține rezultatul
 
                     // Procesăm doar erorile, fără să adăugăm nimic la output în caz de succes
                     if (!response.isEmpty()) {
@@ -232,10 +216,11 @@ public final class Main {
                             responseNode.set("output", objectMapper.valueToTree(line.get("output")));
                             responseNode.put("timestamp", Integer.parseInt(line.get("timestamp").toString()));
 
-                            output.add(responseNode);
+                            output.add(responseNode); // Adăugăm răspunsul în output
                         }
                     }
                 }
+
 
 
                 case "splitPayment" -> {
@@ -243,7 +228,16 @@ public final class Main {
                 }
 
                 case "report" -> {
-                    Map<String, Object> response = bank.generateReport(command);
+                    // Obține lista de utilizatori (presupunând că ai deja această listă)
+                    List<User> users = bank.getUsers(); // sau orice metodă pentru a obține utilizatorii
+
+                    // Creează instanța clasei Report cu lista de utilizatori
+                    Report report = new Report(users);
+
+                    // Procesăm raportul folosind comanda
+                    Map<String, Object> response = report.report(command);
+
+                    // Creăm obiectul JSON pentru răspuns
                     var objectNodeReport = objectMapper.createObjectNode();
                     objectNodeReport.put("command", response.get("command").toString());
                     objectNodeReport.put("timestamp", Integer.parseInt(response.get("timestamp").toString()));
@@ -251,14 +245,17 @@ public final class Main {
                     if (response.containsKey("output")) {
                         objectNodeReport.set("output", objectMapper.valueToTree(response.get("output")));
                     } else {
+                        // Dacă contul nu există, adăugăm un mesaj de eroare
                         var errorNode = objectMapper.createObjectNode();
                         errorNode.put("description", "Account not found");
                         errorNode.put("timestamp", command.getTimestamp());
                         objectNodeReport.set("output", errorNode);
                     }
 
+                    // Adăugăm răspunsul în lista de output
                     output.add(objectNodeReport);
                 }
+
 
 
                 case "spendingsReport" -> {
@@ -293,10 +290,6 @@ public final class Main {
                         }
                     }
                 }
-
-
-
-
                 default -> {
                     objectNode.put("type", "error");
                     objectNode.put("message", "Unknown command: " + command.getCommand());
