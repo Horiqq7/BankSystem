@@ -121,6 +121,29 @@ public class Transaction {
                 map.put("amount", amount); // Asigură-te că e suma totală
                 map.put("error", error);  // Mesajul de eroare
                 break;
+            case "destroyOneTimeCard":
+                map.put("timestamp", timestamp);
+                map.put("description", description);
+                map.put("card", card);
+                map.put("cardHolder", cardHolder);
+                map.put("account", senderIBAN);
+                break;
+            case "newOneTimeCard":
+                map.put("timestamp", timestamp);
+                map.put("description", description);
+                map.put("card", card);
+                map.put("cardHolder", cardHolder);
+                map.put("account", senderIBAN);
+                break;
+            case "changeInterestRate":
+                map.put("timestamp", timestamp);
+                map.put("description", description);
+                break;
+            case "spendingsReportError":  // Noua eroare pentru raportul de cheltuieli
+                map.put("timestamp", timestamp);
+                map.put("description", description);  // Adăugăm mesajul de eroare
+                map.put("error", error);  // Mesajul de eroare
+                break;
             default:
                 break;
         }

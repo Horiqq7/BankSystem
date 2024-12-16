@@ -56,7 +56,7 @@ public class CreateOneTimeCard {
                 null,
                 "createCard" // Tipul tranzacției
         );
-
+        account.addTransaction(transaction);
         // Adăugăm tranzacția la utilizator
         user.addTransaction(transaction);
     }

@@ -84,6 +84,7 @@ public class SendMoney {
                     "sendMoneyInsufficientFunds"
             );
             senderUser.addTransaction(insufficientFundsTransaction);
+            senderAccount.addTransaction(insufficientFundsTransaction);
 
             Map<String, Object> error = new HashMap<>();
             error.put("description", "Insufficient funds in sender account");

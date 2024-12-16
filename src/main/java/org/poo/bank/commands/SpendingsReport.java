@@ -3,6 +3,7 @@ package org.poo.bank.commands;
 import org.poo.bank.Account;
 import org.poo.fileio.CommandInput;
 import org.poo.users.User;
+import org.poo.bank.Transaction;
 
 import java.util.List;
 import java.util.Map;
@@ -17,9 +18,11 @@ public class SpendingsReport {
 
         // Căutăm contul corespunzător
         Account account = null;
+        User accountOwner = null;
         for (User user : users) {
             account = user.getAccountByIBAN(accountIBAN);
             if (account != null) {
+                accountOwner = user; // Salvăm utilizatorul care deține contul
                 break;
             }
         }
@@ -28,10 +31,32 @@ public class SpendingsReport {
             // Dacă contul nu există, returnăm eroarea cerută
             return List.of(Map.of(
                     "command", "spendingsReport",
-                    "output", Map.of(
-                            "description", "Account not found",
-                            "timestamp", currentTimestamp
-                    ),
+                    "output", Map.of("description", "Account not found"),
+                    "timestamp", currentTimestamp
+            ));
+        }
+
+        // Verificăm dacă este un cont de tip "savings"
+        if ("savings".equalsIgnoreCase(account.getType())) {
+            // Înregistrăm o tranzacție cu eroare
+            Transaction errorTransaction = new Transaction(
+                    currentTimestamp,
+                    "This kind of report is not supported for a saving account",
+                    null, null, 0, null, null, null, null,
+                    null, null,
+                    "This kind of report is not supported for a saving account",
+                    "spendingsReportError"
+            );
+
+            // Adăugăm tranzacția în istoricul utilizatorului
+            if (accountOwner != null) {
+                accountOwner.addTransaction(errorTransaction);
+            }
+
+            // Returnăm raportul cu eroare
+            return List.of(Map.of(
+                    "command", "spendingsReport",
+                    "output", Map.of("error", "This kind of report is not supported for a saving account"),
                     "timestamp", currentTimestamp
             ));
         }
@@ -46,8 +71,6 @@ public class SpendingsReport {
             commerciants.sort((a, b) -> {
                 String firstCommerciant = (String) a.get("commerciant");
                 String secondCommerciant = (String) b.get("commerciant");
-
-                // Comparăm literele mari (A-Z) înainte de cele mici (a-z)
                 return firstCommerciant.compareTo(secondCommerciant);
             });
         }

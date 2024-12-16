@@ -160,29 +160,45 @@ public class PayOnline {
         account.addTransaction(transaction);
 
         if (card instanceof OneTimeCard) {
-            // Schimbăm numărul cardului existent
+            // Tranzacție pentru distrugerea cardului OneTimeCard
+            Transaction destroyCardTransaction = new Transaction(
+                    command.getTimestamp(),
+                    "The card has been destroyed",
+                    account.getIBAN(),
+                    null, // Nicio destinație pentru card distrus
+                    0,
+                    account.getCurrency(),
+                    "other",
+                    card.getCardNumber(),
+                    user.getEmail(),
+                    null, // Nu există comerciant
+                    null,
+                    null,
+                    "destroyOneTimeCard"
+            );
+            user.addTransaction(destroyCardTransaction);
+            account.addTransaction(destroyCardTransaction);
+
+            // Creăm un nou card
             String newCardNumber = Utils.generateCardNumber();
             card.setCardNumber(newCardNumber); // Schimbă numărul cardului existent
             card.setStatus("active"); // Setăm cardul înapoi la statusul "active"
 
-            // Nu mai creăm un nou card, doar actualizăm numărul
-            System.out.println("Card " + card.getCardNumber() + " a fost actualizat.");
-
-            // Înregistrăm tranzacția de actualizare a cardului
+            // Tranzacție pentru crearea unui nou card
             Transaction newCardTransaction = new Transaction(
-                    command.getTimestamp() + 1, // Incrementăm timestamp-ul pentru actualizarea cardului
-                    "One-time card reused",
-                    null, // Sender IBAN
-                    account.getIBAN(), // Receiver IBAN
-                    0, // Amount
+                    command.getTimestamp(), // Incrementăm timestamp-ul pentru actualizarea cardului
+                    "New card created",
+                    account.getIBAN(),
+                    null, // Nicio destinație pentru cardul nou
+                    0, // Nu se face transfer
                     account.getCurrency(),
                     "other",
                     newCardNumber,
                     user.getEmail(),
+                    null, // Nu există comerciant
                     null,
                     null,
-                    null,
-                    "reuseOneTimeCard" // Transaction Type pentru reutilizare
+                    "newOneTimeCard"
             );
             user.addTransaction(newCardTransaction);
             account.addTransaction(newCardTransaction);

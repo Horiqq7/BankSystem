@@ -221,8 +221,6 @@ public final class Main {
                     }
                 }
 
-
-
                 case "splitPayment" -> {
                     bank.processCommand(command);
                 }
