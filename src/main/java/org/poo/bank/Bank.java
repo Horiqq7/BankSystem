@@ -287,7 +287,9 @@ public class Bank {
         double splitAmount = amount / accountIBANs.size();
         ExchangeRateManager exchangeRateManager = ExchangeRateManager.getInstance();
 
-        // Verificăm dacă toate conturile pot susține tranzacția
+        Account problematicAccount = null;
+        double problematicAmount = 0;
+
         for (String accountIBAN : accountIBANs) {
             Account account = null;
 
@@ -300,16 +302,14 @@ public class Bank {
             }
 
             if (account == null) {
-                // Contul nu există
                 Map<String, Object> error = new HashMap<>();
                 error.put("description", "Account not found: " + accountIBAN);
                 error.put("involvedAccounts", accountIBANs);
                 error.put("timestamp", timestamp);
                 output.add(error);
-                return output; // Terminăm procesarea
+                return output;
             }
 
-            // Conversia valutară
             double convertedAmount = splitAmount;
             if (!currency.equalsIgnoreCase(account.getCurrency())) {
                 try {
@@ -320,65 +320,64 @@ public class Bank {
                     error.put("involvedAccounts", accountIBANs);
                     error.put("timestamp", timestamp);
                     output.add(error);
-                    return output; // Terminăm procesarea
+                    return output;
                 }
             }
 
-            // Fonduri insuficiente
             if (account.getBalance() < convertedAmount) {
-                System.out.println("buna horia " + accountIBAN + " " + account.getBalance() + " " + convertedAmount + " " + command.getTimestamp());
-                Map<String, Object> error = new HashMap<>();
-                error.put("amount", splitAmount);
-                error.put("currency", currency);
-                error.put("description", "Split payment of " + String.format("%.2f", amount) + " " + currency);
-                error.put("error", "Account " + account.getIBAN() + " has insufficient funds for a split payment.");
-                error.put("involvedAccounts", accountIBANs);
-                error.put("timestamp", timestamp);
-
-                // Creăm tranzacții de eroare pentru toate conturile
-                for (String accountIBANError : accountIBANs) {
-                    // Găsim utilizatorul corespunzător IBAN-ului
-                    User userForError = null;
-                    Account accountForError = null;
-
-                    // Găsim contul și utilizatorul corespunzător
-                    for (User u : users) {
-                        accountForError = u.getAccountByIBAN(accountIBANError);
-                        if (accountForError != null) {
-                            userForError = u;
-                            break;
-                        }
-                    }
-
-                        // Creăm tranzacția de eroare
-                        Transaction errorTransaction = new Transaction(
-                                timestamp,
-                                "Failed split payment of " + String.format("%.2f", amount) + " " + currency,
-                                null,
-                                accountIBAN,
-                                splitAmount,
-                                currency,
-                                "failed",
-                                null, null, null,
-                                accountIBANs,
-                                "Account " + accountIBANError + " has insufficient funds for a split payment.",
-                                "splitPaymentError"
-                        );
-                        userForError.addTransaction(errorTransaction);  // Adăugăm tranzacția de eroare pentru utilizatorul corespunzător
-
-                }
-
-                output.add(error); // Adăugăm eroarea în output
-                return output; // Terminăm procesarea
+                problematicAccount = account;
+                problematicAmount = convertedAmount;
             }
         }
 
-        // Dacă toate conturile au fonduri suficiente, procesăm tranzacția
+        if (problematicAccount != null) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("amount", splitAmount);
+            error.put("currency", currency);
+            error.put("description", "Split payment of " + String.format("%.2f", amount) + " " + currency);
+            error.put("error", "Account " + problematicAccount.getIBAN() + " has insufficient funds for a split payment.");
+            error.put("involvedAccounts", accountIBANs);
+            error.put("timestamp", timestamp);
+
+            for (String accountIBAN : accountIBANs) {
+                User user = null;
+                Account account = null;
+
+                for (User u : users) {
+                    account = u.getAccountByIBAN(accountIBAN);
+                    if (account != null) {
+                        user = u;
+                        break;
+                    }
+                }
+
+                if (user != null && account != null) {
+                    Transaction errorTransaction = new Transaction(
+                            timestamp,
+                            "Split payment of " + String.format("%.2f", amount) + " " + currency,
+                            null,
+                            accountIBAN,
+                            splitAmount,
+                            currency,
+                            "failed",
+                            null, null, null,
+                            accountIBANs,
+                            "Account " + problematicAccount.getIBAN() + " has insufficient funds for a split payment.",
+                            "splitPaymentError"
+                    );
+                    user.addTransaction(errorTransaction);
+                    account.addTransaction(errorTransaction);
+                }
+            }
+
+            output.add(error);
+            return output;
+        }
+
         for (String accountIBAN : accountIBANs) {
             Account account = null;
             User user = null;
 
-            // Găsim contul corespunzător IBAN-ului
             for (User u : users) {
                 account = u.getAccountByIBAN(accountIBAN);
                 if (account != null) {
@@ -387,16 +386,13 @@ public class Bank {
                 }
             }
 
-            // Conversia valutară
             double convertedAmount = splitAmount;
             if (!currency.equalsIgnoreCase(account.getCurrency())) {
                 convertedAmount = exchangeRateManager.convertCurrency(currency, account.getCurrency(), splitAmount, timestamp);
             }
 
-            // Debităm contul
             account.setBalance(account.getBalance() - convertedAmount);
 
-            // Creăm tranzacția
             Transaction splitTransaction = new Transaction(
                     timestamp,
                     "Split payment of " + String.format("%.2f", amount) + " " + currency,
@@ -404,17 +400,20 @@ public class Bank {
                     accountIBAN,
                     splitAmount,
                     currency,
-                    "received",
+                    "processed",
                     null, null, null,
                     accountIBANs,
-                    null,  // fără eroare, pentru o tranzacție de succes
+                    null,
                     "splitPayment"
             );
+
             user.addTransaction(splitTransaction);
+            account.addTransaction(splitTransaction);
         }
 
-        return output; // Tranzacția a fost realizată cu succes
+        return output;
     }
+
 
 
     private User getUserByAccountIBAN(String accountIBAN) {
@@ -669,7 +668,7 @@ public class Bank {
                 description,
                 senderIBAN,
                 receiverIBAN,
-                amount,
+                Double.parseDouble(String.format("%.14f", amount)), // Asigurăm precizia pentru expeditor
                 senderAccount.getCurrency(),
                 "sent", null, null, null, null, null, "sendMoney"
         );
@@ -679,9 +678,9 @@ public class Bank {
                 description,
                 senderIBAN,
                 receiverIBAN,
-                convertedAmount,
+                Double.parseDouble(String.format("%.14f", convertedAmount)), // Asigurăm precizia pentru destinatar
                 receiverAccount.getCurrency(),
-                "received", null, null, null, null, null,"sendMoney"
+                "received", null, null, null, null, null, "sendMoney"
         );
 
         senderUser.addTransaction(senderTransaction);
@@ -954,6 +953,25 @@ public class Bank {
 
         // Verificăm dacă balanța contului este 0
         if (account.getBalance() != 0) {
+            Transaction transaction = new Transaction(
+                    command.getTimestamp(),
+                    "Account couldn't be deleted - there are funds remaining",
+                    null, // Sender IBAN
+                    iban, // Receiver IBAN
+                    0, // Suma tranzacției (0 pentru creare cont)
+                    command.getCurrency(), // Moneda
+                    null,
+                    null, // Card (nu este aplicabil)
+                    null, // Deținător card (nu este aplicabil)
+                    null, // Comerciant (nu este aplicabil)
+                    null, // Conturi implicate
+                    null,
+                    "deleteAccountError" // Tipul tranzacției
+            );
+
+            // Adăugăm tranzacția atât la utilizator, cât și la cont
+            user.addTransaction(transaction);
+
             response.put("error", "Account couldn't be deleted - see org.poo.transactions for details");
             return response;
         }
@@ -1093,28 +1111,29 @@ public class Bank {
         for (Account account : user.getAccounts()) {
             Card card = account.getCardByNumber(command.getCardNumber());
             if (card != null) {
-                account.removeCard(card);
 
-                // Creăm tranzacția
-                Transaction transaction = new Transaction(
-                        command.getTimestamp(),
-                        "The card has been destroyed",
-                        account.getIBAN(), // Sender IBAN
-                        null, // Receiver IBAN
-                        0, // Amount
-                        account.getCurrency(),
-                        "other",
-                        card.getCardNumber(),
-                        user.getEmail(),
-                        null,
-                        null,
-                        null,
-                        "deleteCard"
-                );
+                    account.removeCard(card);
 
-                // Adăugăm tranzacția utilizatorului
-                user.addTransaction(transaction);
-                return;
+                    // Creăm tranzacția
+                    Transaction transaction = new Transaction(
+                            command.getTimestamp(),
+                            "The card has been destroyed",
+                            account.getIBAN(), // Sender IBAN
+                            null, // Receiver IBAN
+                            0, // Amount
+                            account.getCurrency(),
+                            "other",
+                            card.getCardNumber(),
+                            user.getEmail(),
+                            null,
+                            null,
+                            null,
+                            "deleteCard"
+                    );
+
+                    // Adăugăm tranzacția utilizatorului
+                    user.addTransaction(transaction);
+                    return;
             }
         }
     }

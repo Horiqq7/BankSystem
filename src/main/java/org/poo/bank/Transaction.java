@@ -52,6 +52,7 @@ public class Transaction {
     public Map<String, Object> toMap() {
         Map<String, Object> map = new HashMap<>();
 
+
         switch (transactionType) {
             case "createCard":
                 map.put("timestamp", timestamp);
@@ -64,12 +65,16 @@ public class Transaction {
                 map.put("timestamp", timestamp);
                 map.put("description", description);
                 break;
+            case "deleteAccountError": // Noua eroare pentru ștergerea contului
+                map.put("timestamp", timestamp);
+                map.put("description", description); // Adăugăm mesajul de eroare
+                break;
             case "sendMoney":
                 map.put("timestamp", timestamp);
                 map.put("description", description);
                 map.put("senderIBAN", senderIBAN);
                 map.put("receiverIBAN", receiverIBAN);
-                map.put("amount", String.format("%.1f %s", amount, currency));
+                map.put("amount", amount + " " + currency);
                 map.put("transferType", transferType);
                 break;
             case "sendMoneyInsufficientFunds":
@@ -112,10 +117,9 @@ public class Transaction {
                 map.put("timestamp", timestamp);
                 map.put("description", description);
                 map.put("currency", currency);
-//                map.put("contul cu probleme", receiverIBAN);
                 map.put("involvedAccounts", involvedAccounts);
-                map.put("amount", amount);
-                map.put("error", error);  // Descrierea erorii
+                map.put("amount", amount); // Asigură-te că e suma totală
+                map.put("error", error);  // Mesajul de eroare
                 break;
             default:
                 break;
