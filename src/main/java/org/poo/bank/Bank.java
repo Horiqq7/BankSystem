@@ -1,13 +1,25 @@
 package org.poo.bank;
 
-import org.poo.bank.commands.*;
+import org.poo.bank.account.Account;
+import org.poo.bank.commands.account_commands.*;
+import org.poo.bank.commands.account_commands.card_commands.CheckCardStatus;
+import org.poo.bank.commands.account_commands.card_commands.CreateCard;
+import org.poo.bank.commands.account_commands.card_commands.CreateOneTimeCard;
+import org.poo.bank.commands.account_commands.card_commands.DeleteCard;
+import org.poo.bank.commands.pay_commands.PayOnline;
+import org.poo.bank.commands.pay_commands.SendMoney;
+import org.poo.bank.commands.pay_commands.SplitPayment;
+import org.poo.bank.commands.print_commands.PrintTransactions;
+import org.poo.bank.commands.print_commands.PrintUsers;
+import org.poo.bank.commands.report_commands.AbstractReportCommand;
+import org.poo.bank.commands.report_commands.SpendingsReport;
+import org.poo.bank.commands.report_commands.Report;
 import org.poo.fileio.CommandInput;
 import org.poo.fileio.ObjectInput;
-import org.poo.users.User;
+import org.poo.bank.users.User;
 
 
 import java.util.*;
-
 
 public class Bank {
     private final List<User> users = new ArrayList<>();
@@ -24,6 +36,7 @@ public class Bank {
 
     public List<Map<String, Object>> processCommand(CommandInput command) {
         List<Map<String, Object>> output = new ArrayList<>();
+        AbstractReportCommand reportCommand;
         switch (command.getCommand()) {
             case "printUsers":
                 PrintUsers printUsers = new PrintUsers(users);
@@ -84,19 +97,19 @@ public class Bank {
             case "splitPayment":
                 SplitPayment splitPaymentProcessor = new SplitPayment(users);
                 return splitPaymentProcessor.splitPayment(command);
-            case "report":
-                Report report = new Report(users);
-                Map<String, Object> reportResponse = report.report(command);
-                return Collections.singletonList(reportResponse);
             case "spendingsReport":
-                SpendingsReport spendingsReport = new SpendingsReport();
-                return spendingsReport.generateSpendingsReport(command, getUsers());
+                reportCommand = new SpendingsReport();
+                break;
+            case "report":
+                reportCommand = new Report();
+                break;
             case "addInterest":
                 AddInterest addInterestProcessor = new AddInterest(users);
                 return addInterestProcessor.addInterest(command);
             default:
                 throw new IllegalArgumentException("Unknown command: " + command.getCommand());
         }
+        return List.of(reportCommand.process(command, getUsers()));
     }
 
     public List<User> getUsers() {

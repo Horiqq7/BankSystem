@@ -4,16 +4,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import org.poo.bank.commands.PrintTransactions;
-import org.poo.bank.commands.Report;
-import org.poo.bank.commands.CheckCardStatus;
+import org.poo.bank.commands.print_commands.PrintTransactions;
+import org.poo.bank.commands.account_commands.card_commands.CheckCardStatus;
 import org.poo.checker.Checker;
 import org.poo.checker.CheckerConstants;
 import org.poo.fileio.CommandInput;
 import org.poo.fileio.ObjectInput;
 import org.poo.bank.Bank;
-import org.poo.operations.ExchangeRateManager;
-import org.poo.users.User;
+import org.poo.bank.exchange_rates.ExchangeRateManager;
+import org.poo.bank.users.User;
 import org.poo.utils.Utils;
 
 import java.io.File;
@@ -225,55 +224,29 @@ public final class Main {
                     bank.processCommand(command);
                 }
 
-                case "report" -> {
-                    // Obține lista de utilizatori (presupunând că ai deja această listă)
-                    List<User> users = bank.getUsers(); // sau orice metodă pentru a obține utilizatorii
-
-                    // Creează instanța clasei Report cu lista de utilizatori
-                    Report report = new Report(users);
-
-                    // Procesăm raportul folosind comanda
-                    Map<String, Object> response = report.report(command);
-
-                    // Creăm obiectul JSON pentru răspuns
-                    var objectNodeReport = objectMapper.createObjectNode();
-                    objectNodeReport.put("command", response.get("command").toString());
-                    objectNodeReport.put("timestamp", Integer.parseInt(response.get("timestamp").toString()));
-
-                    if (response.containsKey("output")) {
-                        objectNodeReport.set("output", objectMapper.valueToTree(response.get("output")));
-                    } else {
-                        // Dacă contul nu există, adăugăm un mesaj de eroare
-                        var errorNode = objectMapper.createObjectNode();
-                        errorNode.put("description", "Account not found");
-                        errorNode.put("timestamp", command.getTimestamp());
-                        objectNodeReport.set("output", errorNode);
-                    }
-
-                    // Adăugăm răspunsul în lista de output
-                    output.add(objectNodeReport);
-                }
-
-
-
-                case "spendingsReport" -> {
+                case "report", "spendingsReport" -> {
+                    // Procesăm comanda prin `Bank`, care folosește AbstractReportCommand
                     List<Map<String, Object>> response = bank.processCommand(command);
 
-                    if (!response.isEmpty()) {
-                        for (Map<String, Object> line : response) {
-                            ObjectNode responseNode = objectMapper.createObjectNode();
-                            responseNode.put("command", line.get("command").toString());
+                    for (Map<String, Object> line : response) {
+                        ObjectNode responseNode = objectMapper.createObjectNode();
 
-                            // Procesăm ieșirea "output"
-                            if (line.get("output") != null) {
-                                responseNode.set("output", objectMapper.valueToTree(line.get("output")));
-                            }
+                        // Adăugăm comanda în răspuns
+                        responseNode.put("command", line.get("command").toString());
 
-                            responseNode.put("timestamp", Integer.parseInt(line.get("timestamp").toString()));
-                            output.add(responseNode);
+                        // Adăugăm output-ul (dacă există)
+                        if (line.containsKey("output")) {
+                            responseNode.set("output", objectMapper.valueToTree(line.get("output")));
                         }
+
+                        // Adăugăm timestamp-ul
+                        responseNode.put("timestamp", Integer.parseInt(line.get("timestamp").toString()));
+
+                        // Adăugăm nodul răspuns în lista finală de output
+                        output.add(responseNode);
                     }
                 }
+
 
 
                 case "addInterest" -> { // Cazul pentru addInterest
