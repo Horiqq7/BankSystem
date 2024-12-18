@@ -4,22 +4,27 @@ import org.poo.bank.account.Account;
 import org.poo.bank.transaction.Transaction;
 import org.poo.fileio.CommandInput;
 import org.poo.bank.exchange_rates.ExchangeRateManager;
-import org.poo.bank.users.User;
+import org.poo.bank.user.User;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class SplitPayment {
-
+public final class SplitPayment {
     private final List<User> users;
 
-    public SplitPayment(List<User> users) {
+    public SplitPayment(final List<User> users) {
         this.users = users;
     }
 
-    public List<Map<String, Object>> splitPayment(CommandInput command) {
+    /**
+     * Proceseaza o comanda de tip splitPayment distribuind suma specificata intre conturile date.
+     *
+     * @param command Comanda de plata care contine informatiile necesare pentru procesare.
+     * @return O lista de erori sau tranzactii efectuate.
+     */
+    public List<Map<String, Object>> splitPayment(final CommandInput command) {
         List<Map<String, Object>> output = new ArrayList<>();
         List<String> accountIBANs = command.getAccounts();
         double amount = command.getAmount();
@@ -37,12 +42,10 @@ public class SplitPayment {
         ExchangeRateManager exchangeRateManager = ExchangeRateManager.getInstance();
 
         Account problematicAccount = null;
-        double problematicAmount = 0;
 
         for (String accountIBAN : accountIBANs) {
             Account account = null;
 
-            // Găsim contul corespunzător IBAN-ului
             for (User u : users) {
                 account = u.getAccountByIBAN(accountIBAN);
                 if (account != null) {
@@ -62,10 +65,12 @@ public class SplitPayment {
             double convertedAmount = splitAmount;
             if (!currency.equalsIgnoreCase(account.getCurrency())) {
                 try {
-                    convertedAmount = exchangeRateManager.convertCurrency(currency, account.getCurrency(), splitAmount, timestamp);
+                    convertedAmount = exchangeRateManager.convertCurrency(currency,
+                            account.getCurrency(), splitAmount);
                 } catch (IllegalArgumentException e) {
                     Map<String, Object> error = new HashMap<>();
-                    error.put("description", "Conversion rate not available for " + currency + " to " + account.getCurrency());
+                    error.put("description", "Conversion rate not available for "
+                            + currency + " to " + account.getCurrency());
                     error.put("involvedAccounts", accountIBANs);
                     error.put("timestamp", timestamp);
                     output.add(error);
@@ -75,7 +80,6 @@ public class SplitPayment {
 
             if (account.getBalance() < convertedAmount) {
                 problematicAccount = account;
-                problematicAmount = convertedAmount;
             }
         }
 
@@ -83,8 +87,10 @@ public class SplitPayment {
             Map<String, Object> error = new HashMap<>();
             error.put("amount", splitAmount);
             error.put("currency", currency);
-            error.put("description", "Split payment of " + String.format("%.2f", amount) + " " + currency);
-            error.put("error", "Account " + problematicAccount.getIBAN() + " has insufficient funds for a split payment.");
+            error.put("description", "Split payment of "
+                    + String.format("%.2f", amount) + " " + currency);
+            error.put("error", "Account " + problematicAccount.getIban()
+                    + " has insufficient funds for a split payment.");
             error.put("involvedAccounts", accountIBANs);
             error.put("timestamp", timestamp);
 
@@ -108,10 +114,13 @@ public class SplitPayment {
                             accountIBAN,
                             splitAmount,
                             currency,
-                            "failed",
-                            null, null, null,
+                            null,
+                            null,
+                            null,
+                            null,
                             accountIBANs,
-                            "Account " + problematicAccount.getIBAN() + " has insufficient funds for a split payment.",
+                            "Account " + problematicAccount.getIban()
+                                    + " has insufficient funds for a split payment.",
                             "splitPaymentError"
                     );
                     user.addTransaction(errorTransaction);
@@ -137,7 +146,8 @@ public class SplitPayment {
 
             double convertedAmount = splitAmount;
             if (!currency.equalsIgnoreCase(account.getCurrency())) {
-                convertedAmount = exchangeRateManager.convertCurrency(currency, account.getCurrency(), splitAmount, timestamp);
+                convertedAmount = exchangeRateManager.convertCurrency(currency,
+                        account.getCurrency(), splitAmount);
             }
 
             account.setBalance(account.getBalance() - convertedAmount);
@@ -149,8 +159,10 @@ public class SplitPayment {
                     accountIBAN,
                     splitAmount,
                     currency,
-                    "processed",
-                    null, null, null,
+                    null,
+                    null,
+                    null,
+                    null,
                     accountIBANs,
                     null,
                     "splitPayment"

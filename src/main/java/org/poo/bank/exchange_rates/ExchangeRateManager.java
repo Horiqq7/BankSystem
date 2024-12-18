@@ -2,15 +2,25 @@ package org.poo.bank.exchange_rates;
 
 import org.poo.fileio.ExchangeInput;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+import java.util.Collections;
 
-public class ExchangeRateManager {
+public final class ExchangeRateManager {
     private static ExchangeRateManager instance;
     private final List<ExchangeRate> exchangeRates = new ArrayList<>();
     private final Map<String, Map<String, Double>> exchangeGraph = new HashMap<>();
 
-    private ExchangeRateManager() {}
+    private ExchangeRateManager() { }
 
+    /**
+     * Returneaza instanta unica a ExchangeRateManager.
+     * @return instanta ExchangeRateManager
+     */
     public static ExchangeRateManager getInstance() {
         if (instance == null) {
             instance = new ExchangeRateManager();
@@ -18,36 +28,58 @@ public class ExchangeRateManager {
         return instance;
     }
 
-    // Încarcă ratele și construiește graful, folosind Factory pentru crearea ExchangeRate
-    public void loadExchangeRates(List<ExchangeInput> exchangeInputs) {
+    /**
+     * Incarca ratele de schimb dintr-o lista de inputuri si
+     * construieste graful de rate de schimb.
+     * @param exchangeInputs lista de inputuri care contine ratele de schimb.
+     */
+    public void loadExchangeRates(final List<ExchangeInput> exchangeInputs) {
         exchangeRates.clear();
         exchangeGraph.clear();
-        for (ExchangeInput input : exchangeInputs) {
-            // Folosim Factory pentru a crea un ExchangeRate
-            ExchangeRate rate = ExchangeRateFactory.createExchangeRate(input);
+        for (final ExchangeInput input : exchangeInputs) {
+            ExchangeRate rate = new ExchangeRate(input);
             exchangeRates.add(rate);
             addToGraph(rate.getFrom(), rate.getTo(), rate.getRate());
         }
     }
 
-    private void addToGraph(String from, String to, double rate) {
+    /**
+     * Adauga o rata de schimb in graful de rate.
+     * @param from moneda de origine
+     * @param to moneda tinta
+     * @param rate rata de schimb
+     */
+    private void addToGraph(final String from, final String to, final double rate) {
         exchangeGraph.putIfAbsent(from, new HashMap<>());
         exchangeGraph.putIfAbsent(to, new HashMap<>());
         exchangeGraph.get(from).put(to, rate);
-        exchangeGraph.get(to).put(from, 1.0 / rate); // Adăugăm și rata inversă
+        exchangeGraph.get(to).put(from, 1.0 / rate);
     }
 
-    public double convertCurrency(String from, String to, double amount, int timestamp) {
-        double rate = getExchangeRate(from, to, timestamp);
+    /**
+     * Converteste o suma dintr-o moneda in alta folosind rata de schimb.
+     * @param from moneda de origine
+     * @param to moneda tinta
+     * @param amount suma de convertit
+     * @return suma convertita
+     */
+    public double convertCurrency(final String from, final String to, final double amount) {
+        double rate = getExchangeRate(from, to);
         return amount * rate;
     }
 
-    public double getExchangeRate(String from, String to, int timestamp) {
+    /**
+     * Obtine rata de schimb dintre două monede.
+     * Daca nu exista o rata directa se va cauta o rata indirecta folosind un algoritm de BFS.
+     * @param from moneda de origine
+     * @param to moneda tintă
+     * @return rata de schimb
+     */
+    public double getExchangeRate(final String from, final String to) {
         if (from.equalsIgnoreCase(to)) {
             return 1.0;
         }
 
-        // BFS pentru a găsi rata indirectă
         Queue<String> queue = new LinkedList<>();
         Map<String, Double> visited = new HashMap<>();
         queue.add(from);
@@ -57,7 +89,8 @@ public class ExchangeRateManager {
             String current = queue.poll();
             double currentRate = visited.get(current);
 
-            Map<String, Double> neighbors = exchangeGraph.getOrDefault(current, Collections.emptyMap());
+            Map<String, Double> neighbors = exchangeGraph.getOrDefault(current,
+                    Collections.emptyMap());
             for (Map.Entry<String, Double> entry : neighbors.entrySet()) {
                 String neighbor = entry.getKey();
                 double rate = entry.getValue();
@@ -74,7 +107,6 @@ public class ExchangeRateManager {
             }
         }
 
-        // Poți adăuga o excepție mai informativă sau un mesaj de eroare
-        throw new IllegalArgumentException("Exchange rate not found for " + from + " to " + to);
+        return 0;
     }
 }

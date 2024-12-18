@@ -2,12 +2,17 @@ package org.poo.bank.account;
 
 import org.poo.bank.cards.Card;
 import org.poo.bank.transaction.Transaction;
+import org.poo.bank.user.User;
 
-import java.util.*;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
-public class Account {
-    private final String IBAN;
+public final class Account {
+    private final String iban;
     private double balance;
     private double minimumBalance;
     private final String currency;
@@ -16,147 +21,248 @@ public class Account {
     private List<Transaction> transactions;
     private double interestRate;
 
-    private Account(AccountBuilder builder) {
-        this.IBAN = builder.IBAN;
-        this.balance = builder.balance;
-        this.minimumBalance = builder.minimumBalance;
+    private Account(final AccountBuilder builder) {
+        this.iban = builder.iban;
+        this.balance = builder.accountBalance;
+        this.minimumBalance = builder.accountMinimumBalance;
         this.currency = builder.currency;
         this.type = builder.type;
-        this.cards = builder.cards != null ? builder.cards : new ArrayList<>();
-        this.transactions = builder.transactions != null ? builder.transactions : new ArrayList<>();
-        this.interestRate = builder.interestRate;
+        this.cards = builder.accountCards != null ? builder.accountCards : new ArrayList<>();
+        this.transactions = builder.accountTransactions != null
+                ? builder.accountTransactions : new ArrayList<>();
+        this.interestRate = builder.accountInterestRate;
     }
 
-    public void addTransaction(Transaction transaction) {
+    /**
+     * Adauga o tranzactie in lista tranzactiilor asociate contului.
+     *
+     * @param transaction tranzactia de adaugat.
+     */
+    public void addTransaction(final Transaction transaction) {
         transactions.add(transaction);
     }
 
-    public void setInterestRate(double newInterestRate) {
-        if (newInterestRate < 0) {
-            throw new IllegalArgumentException("Interest rate cannot be negative");
-        }
+    /**
+     * Seteaza rata dobanzii pentru acest cont.
+     *
+     * @param newInterestRate Noua rata a dobanzii.
+     */
+    public void setInterestRate(final double newInterestRate) {
         this.interestRate = newInterestRate;
     }
 
+    /**
+     * Returneaza rata dobanzii asociata acestui cont.
+     *
+     * @return Rata dobanzii.
+     */
     public double getInterestRate() {
         return interestRate;
     }
 
+    /**
+     * Returneaza lista tranzactiilor asociate contului.
+     *
+     * @return Lista tranzactiilor.
+     */
     public List<Transaction> getTransactions() {
         return transactions;
     }
 
-    public String getIBAN() {
-        return IBAN;
+    /**
+     * Returneaza iban-ul contului.
+     *
+     * @return iban-ul contului.
+     */
+    public String getIban() {
+        return iban;
     }
 
+    /**
+     * Elimina toate cardurile asociate contului.
+     */
     public void removeAllCards() {
         this.cards.clear();
     }
 
-    public Map<String, Object> generateSpendingsReport(int startTimestamp, int endTimestamp) {
-        // Filtrăm tranzacțiile care aparțin intervalului și sunt de tip "payment"
-        List<Transaction> filteredTransactions = transactions.stream()
-                .filter(t -> t.getTimestamp() >= startTimestamp
-                        && t.getTimestamp() <= endTimestamp
-                        && "payOnline".equals(t.getTransactionType()))
-                .collect(Collectors.toList());
+    /**
+     * Returneaza suma minima necesara in cont.
+     *
+     * @return Balanta minima.
+     */
+    public double getMinimumBalance() {
+        return minimumBalance;
+    }
 
-        // Grupăm tranzacțiile după commerciant și calculăm totalurile
-        Map<String, Double> commerciantsTotals = filteredTransactions.stream()
-                .filter(t -> t.getCommerciant() != null)
-                .collect(Collectors.groupingBy(
-                        Transaction::getCommerciant,
-                        Collectors.summingDouble(Transaction::getAmount)
-                ));
+    /**
+     * Seteaza balanta minima a contului.
+     *
+     * @param minimumBalance Noua balanta minima.
+     */
+    public void setMinimumBalance(final double minimumBalance) {
+        this.minimumBalance = minimumBalance;
+    }
 
-        // Generăm o listă de comercianți cu totalurile corespunzătoare
-        List<Map<String, Object>> commerciantsList = commerciantsTotals.entrySet().stream()
-                .map(entry -> {
-                    Map<String, Object> map = new HashMap<>();
-                    map.put("commerciant", entry.getKey());
-                    map.put("total", entry.getValue());
-                    return map;
-                })
-                .collect(Collectors.toList());
+    /**
+     * Returneaza balanta curenta a contului.
+     *
+     * @return Balanta contului.
+     */
+    public double getBalance() {
+        return balance;
+    }
 
-        // Conversia tranzacțiilor filtrate într-o listă de hărți
-        List<Map<String, Object>> transactionsList = filteredTransactions.stream()
-                .map(Transaction::toMap)
-                .collect(Collectors.toList());
+    /**
+     * Seteaza balanta contului.
+     *
+     * @param balance Noua balanta.
+     */
+    public void setBalance(final double balance) {
+        this.balance = balance;
+    }
 
-        // Creăm raportul final
+    /**
+     * Returneaza moneda in care opereaza contul.
+     *
+     * @return Moneda contului.
+     */
+    public String getCurrency() {
+        return currency;
+    }
+
+    /**
+     * Returneaza tipul contului.
+     *
+     * @return Tipul contului.
+     */
+    public String getType() {
+        return type;
+    }
+
+    /**
+     * Returneaza lista de carduri asociate contului.
+     *
+     * @return Lista de carduri.
+     */
+    public List<Card> getCards() {
+        return cards;
+    }
+
+    /**
+     * Construieste o reprezentare sub forma de mapa a contului.
+     *
+     * @return Mapa care contine detalii despre cont.
+     */
+    public Map<String, Object> toMap() {
+        Map<String, Object> map = new HashMap<>();
+        map.put("IBAN", iban);
+        map.put("balance", balance);
+        map.put("currency", currency);
+        map.put("type", type);
+        map.put("cards", cards.stream().map(Card::toMap).collect(Collectors.toList()));
+        return map;
+    }
+
+    /**
+     * Returneaza cardul care corespunde unui numar de card specificat.
+     *
+     * @param cardNumber Numarul cardului cautat.
+     * @return Cardul corespunzator sau null daca nu exista.
+     */
+    public Card getCardByNumber(final String cardNumber) {
+        for (Card card : cards) {
+            if (card.getCardNumber().equals(cardNumber)) {
+                return card;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Gaseste contul care contine un anumit card, utilizand numarul cardului.
+     *
+     * @param user Utilizatorul caruia ii apartine contul.
+     * @param cardNumber Numarul cardului.
+     * @return Contul care contine cardul sau null daca nu exista.
+     */
+    public static Account findByCardNumber(final User user, final String cardNumber) {
+        for (Account account : user.getAccounts()) {
+            if (account.getCardByNumber(cardNumber) != null) {
+                return account;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Genereaza un raport al cheltuielilor in functie de tranzactiile
+     * realizate in intervalul specificat.
+     *
+     * @param startTimestamp Inceputul intervalului.
+     * @param endTimestamp Sfarsitul intervalului.
+     * @return Mapa cu detalii despre raportul de cheltuieli.
+     */
+    public Map<String, Object> generateSpendingsReport(final int startTimestamp,
+                                                       final int endTimestamp) {
+        List<Transaction> filteredTransactions = new ArrayList<>();
+        for (Transaction t : transactions) {
+            if (t.getTimestamp() >= startTimestamp
+                    && t.getTimestamp() <= endTimestamp
+                    && "payOnline".equals(t.getTransactionType())) {
+                filteredTransactions.add(t);
+            }
+        }
+
+        Map<String, Double> commerciantsTotals = new HashMap<>();
+        for (Transaction t : filteredTransactions) {
+            if (t.getCommerciant() != null) {
+                String commerciant = t.getCommerciant();
+                double amount = t.getAmount();
+                commerciantsTotals.put(commerciant,
+                        commerciantsTotals.getOrDefault(commerciant, 0.0) + amount);
+            }
+        }
+
+        List<Map<String, Object>> commerciantsList = new ArrayList<>();
+        for (Map.Entry<String, Double> entry : commerciantsTotals.entrySet()) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("commerciant", entry.getKey());
+            map.put("total", entry.getValue());
+            commerciantsList.add(map);
+        }
+
+        List<Map<String, Object>> transactionsList = new ArrayList<>();
+        for (Transaction transaction : filteredTransactions) {
+            transactionsList.add(transaction.toMap());
+        }
+
         Map<String, Object> report = new HashMap<>();
-        report.put("IBAN", IBAN);
+        report.put("IBAN", iban);
         report.put("balance", balance);
         report.put("currency", currency);
-        report.put("transactions", transactionsList); // Lista tranzacțiilor
-        report.put("commerciants", commerciantsList); // Lista comercianților
+        report.put("transactions", transactionsList);
+        report.put("commerciants", commerciantsList);
 
         return report;
     }
 
-
-    public void addFunds(double amount) {
-        if (amount > 0) {
-            this.balance += amount;
-            Transaction transaction = new Transaction(
-                    (int) (System.currentTimeMillis() / 1000),
-                    "Funds added",
-                    null,
-                    IBAN,
-                    amount,
-                    currency,
-                    "addFunds",
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    "addFunds"
-            );
-            addTransaction(transaction);
-        }
-    }
-
-    public void addCard(Card card) {
-        cards.add(card);
-        Transaction transaction = new Transaction(
-                (int) (System.currentTimeMillis() / 1000),
-                "Card added",
-                null,
-                IBAN,
-                0,
-                currency,
-                "addCard",
-                card.getCardNumber(),
-                null,
-                null,
-                null,
-                null,
-                "addCard"
-        );
-        addTransaction(transaction);
-    }
-
-    public Card getCardByNumber(String cardNumber) {
-        return cards.stream()
-                .filter(card -> card.getCardNumber().equals(cardNumber))
-                .findFirst()
-                .orElse(null);
-    }
-
-    public void withdrawFunds(double amount) {
+    /**
+     * Retrage o suma de bani din cont daca exista suficiente fonduri.
+     *
+     * @param amount Suma de retras.
+     * @throws IllegalArgumentException Daca fondurile sunt insuficiente.
+     */
+    public void withdrawFunds(final double amount) {
         if (this.balance >= amount) {
             this.balance -= amount;
             Transaction transaction = new Transaction(
-                    (int) (System.currentTimeMillis() / 1000),
+                    0,
                     "Funds withdrawn",
-                    IBAN,
+                    iban,
                     null,
                     -amount,
                     currency,
-                    "withdrawFunds",
+                    null,
                     null,
                     null,
                     null,
@@ -170,24 +276,73 @@ public class Account {
         }
     }
 
-    public double getMinimumBalance() {
-        return minimumBalance;
+    /**
+     * Adauga o suma de bani in cont.
+     *
+     * @param amount Suma de adaugat. Trebuie sa fie mai mare decat zero.
+     */
+    public void addFunds(final double amount) {
+        if (amount > 0) {
+            this.balance += amount;
+            Transaction transaction = new Transaction(
+                    0,
+                    "Funds added",
+                    null,
+                    iban,
+                    amount,
+                    currency,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    "addFunds"
+            );
+            addTransaction(transaction);
+        }
     }
 
-    public void setMinimumBalance(double minimumBalance) {
-        this.minimumBalance = minimumBalance;
-    }
-
-    public void removeCard(Card card) {
-        cards.remove(card);
+    /**
+     * Adauga un card in lista de carduri asociate contului.
+     *
+     * @param card Cardul care trebuie adaugat.
+     */
+    public void addCard(final Card card) {
+        cards.add(card);
         Transaction transaction = new Transaction(
-                (int) (System.currentTimeMillis() / 1000),
-                "Card removed",
+                0,
+                "Card added",
                 null,
-                IBAN,
+                iban,
                 0,
                 currency,
-                "removeCard",
+                null,
+                card.getCardNumber(),
+                null,
+                null,
+                null,
+                null,
+                "addCard"
+        );
+        addTransaction(transaction);
+    }
+
+    /**
+     * Elimina un card din lista de carduri asociate contului.
+     *
+     * @param card Cardul care trebuie eliminat.
+     */
+    public void removeCard(final Card card) {
+        cards.remove(card);
+        Transaction transaction = new Transaction(
+                0,
+                "Card removed",
+                null,
+                iban,
+                0,
+                currency,
+                null,
                 card.getCardNumber(),
                 null,
                 null,
@@ -198,86 +353,94 @@ public class Account {
         addTransaction(transaction);
     }
 
-    public double getBalance() {
-        return balance;
-    }
-
-    public void setBalance(double balance) {
-        this.balance = balance;
-    }
-
-    public String getCurrency() {
-        return currency;
-    }
-
-    public String getType() {
-        return type;
-    }
-
-    public List<Card> getCards() {
-        return cards;
-    }
-
-    public Map<String, Object> toMap() {
-        Map<String, Object> map = new HashMap<>();
-        map.put("IBAN", IBAN);
-        map.put("balance", balance);
-        map.put("currency", currency);
-        map.put("type", type);
-        map.put("cards", cards.stream().map(Card::toMap).collect(Collectors.toList()));
-        return map;
-    }
-
+    /**
+     * Clasa builder pentru crearea obiectelor de tip Account.
+     */
     public static class AccountBuilder {
-        private String IBAN;
-        private double balance = 0;
-        private double minimumBalance = 0;
+        private String iban;
+        private double accountBalance = 0;
+        private double accountMinimumBalance = 0;
         private String currency;
         private String type;
-        private List<Card> cards;
-        private List<Transaction> transactions;
-        private double interestRate = 0;
-        private List<String> involvedAccounts;
+        private List<Card> accountCards;
+        private List<Transaction> accountTransactions;
+        private double accountInterestRate = 0;
 
-        public AccountBuilder(String IBAN, String currency, String type) {
-            this.IBAN = IBAN;
+        /**
+         * Constructor pentru AccountBuilder.
+         *
+         * @param iban IBAN-ul contului.
+         * @param currency Moneda contului.
+         * @param type Tipul contului.
+         */
+        public AccountBuilder(final String iban, final String currency, final String type) {
+            this.iban = iban;
             this.currency = currency;
             this.type = type;
         }
 
-        public AccountBuilder balance(double balance) {
-            this.balance = balance;
+        /**
+         * Seteaza balanta initiala pentru cont.
+         *
+         * @param balance Balanta initiala.
+         * @return Instanta actualizata a builder-ului.
+         */
+        public final AccountBuilder balance(final double balance) {
+            this.accountBalance = balance;
             return this;
         }
 
-        public AccountBuilder minimumBalance(double minimumBalance) {
-            this.minimumBalance = minimumBalance;
+        /**
+         * Seteaza balanta minima necesara pentru cont.
+         *
+         * @param minimumBalance Balanta minima.
+         * @return Instanta actualizata a builder-ului.
+         */
+        public final AccountBuilder minimumBalance(final double minimumBalance) {
+            this.accountMinimumBalance = minimumBalance;
             return this;
         }
 
-        public AccountBuilder interestRate(double interestRate) {
-            this.interestRate = interestRate;
+        /**
+         * Seteaza rata dobanzii pentru cont.
+         *
+         * @param interestRate Rata dobanzii.
+         * @return Instanta actualizata a builder-ului.
+         */
+        public final AccountBuilder interestRate(final double interestRate) {
+            this.accountInterestRate = interestRate;
             return this;
         }
 
-        public AccountBuilder cards(List<Card> cards) {
-            this.cards = cards;
+        /**
+         * Seteaza lista de carduri asociate contului.
+         *
+         * @param cards Lista de carduri.
+         * @return Instanta actualizata a builder-ului.
+         */
+        public final AccountBuilder cards(final List<Card> cards) {
+            this.accountCards = cards;
             return this;
         }
 
-        public AccountBuilder transactions(List<Transaction> transactions) {
-            this.transactions = transactions;
+        /**
+         * Seteaza lista de tranzactii asociate contului.
+         *
+         * @param transactions Lista de tranzactii.
+         * @return Instanta actualizata a builder-ului.
+         */
+        public AccountBuilder transactions(final List<Transaction> transactions) {
+            this.accountTransactions = transactions;
             return this;
         }
 
-        public AccountBuilder involvedAccounts(List<String> involvedAccounts) {
-            this.involvedAccounts = involvedAccounts;
-            return this;
-        }
-
+        /**
+         * Construieste un obiect de tip Account utilizand configuratia actuala.
+         *
+         * @return Un nou obiect Account.
+         */
         public Account build() {
             return new Account(this);
         }
     }
-
 }

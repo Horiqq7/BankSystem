@@ -2,22 +2,26 @@ package org.poo.bank.commands.print_commands;
 
 import org.poo.bank.transaction.Transaction;
 import org.poo.fileio.CommandInput;
-import org.poo.bank.users.User;
+import org.poo.bank.user.User;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class PrintTransactions {
+public final class PrintTransactions {
+    private final List<User> users;
 
-    private List<User> users;
-
-    public PrintTransactions(List<User> users) {
+    public PrintTransactions(final List<User> users) {
         this.users = users;
     }
 
-    public List<Map<String, Object>> printTransactions(CommandInput command) {
+    /**
+     * Metoda care afiseaza tranzactiile unui utilizator pe baza unui email.
+     * @param command Comanda care contine datele necesare.
+     * @return O lista de harti care reprezinta tranzactiile utilizatorului.
+     */
+    public List<Map<String, Object>> printTransactions(final CommandInput command) {
         String email = command.getEmail();
-        User user = findUserByEmail(email); // Asigură-te că această metodă există
+        User user = User.findByEmail(users, email);
         if (user == null) {
             throw new IllegalArgumentException("User not found: " + email);
         }
@@ -25,15 +29,8 @@ public class PrintTransactions {
         List<Transaction> transactions = user.getTransactions();
         List<Map<String, Object>> outputTransactions = new ArrayList<>();
         for (Transaction transaction : transactions) {
-            outputTransactions.add(transaction.toMap()); // Asigură-te că Transaction are metoda toMap
+            outputTransactions.add(transaction.toMap());
         }
         return outputTransactions;
-    }
-
-    private User findUserByEmail(String email) {
-        return users.stream()
-                .filter(user -> user.getEmail().equals(email))
-                .findFirst()
-                .orElse(null);
     }
 }

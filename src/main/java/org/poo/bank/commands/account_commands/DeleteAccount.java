@@ -3,21 +3,27 @@ package org.poo.bank.commands.account_commands;
 import org.poo.bank.account.Account;
 import org.poo.bank.transaction.Transaction;
 import org.poo.fileio.CommandInput;
-import org.poo.bank.users.User;
+import org.poo.bank.user.User;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-// În DeleteAccount
-public class DeleteAccount {
+public final class DeleteAccount {
     private final List<User> users;
 
-    public DeleteAccount(List<User> users) {
+    public DeleteAccount(final List<User> users) {
         this.users = users;
     }
 
-    public Map<String, Object> deleteAccount(CommandInput command) {
+    /**
+     * Sterge un cont bancar pe baza unui IBAN si a unui email.
+     * Daca contul are fonduri, stergerea nu va avea loc si va fi adaugata o tranzactie de eroare.
+     *
+     * @param command Comanda care contine detalii despre cont, email si timestamp.
+     * @return Raspunsul care contine succesul sau eroarea operatiunii.
+     */
+    public Map<String, Object> deleteAccount(final CommandInput command) {
         String iban = command.getAccount();
         String email = command.getEmail();
         int timestamp = command.getTimestamp();
@@ -59,8 +65,8 @@ public class DeleteAccount {
             );
 
             user.addTransaction(transaction);
-
-            response.put("error", "Account couldn't be deleted - see org.poo.transactions for details");
+            response.put("error",
+                    "Account couldn't be deleted - see org.poo.transactions for details");
             return response;
         }
 
@@ -71,5 +77,3 @@ public class DeleteAccount {
         return response;
     }
 }
-
-

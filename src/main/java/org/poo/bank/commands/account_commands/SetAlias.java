@@ -2,45 +2,38 @@ package org.poo.bank.commands.account_commands;
 
 import org.poo.bank.account.Account;
 import org.poo.fileio.CommandInput;
-import org.poo.bank.users.User;
+import org.poo.bank.user.User;
 
 import java.util.List;
 
-public class SetAlias {
+public final class SetAlias {
     private List<User> users;
 
-    public SetAlias(List<User> users) {
+    public SetAlias(final List<User> users) {
         this.users = users;
     }
 
-    public void setAlias(CommandInput command) {
-        String email = command.getEmail();   // Email-ul utilizatorului
-        String alias = command.getAlias();   // Alias-ul care va fi setat
-        String iban = command.getAccount();  // IBAN-ul care va fi asociat alias-ului
+    /**
+     * Seteaza alias-ul unui cont specificat de utilizator.
+     *
+     * @param command Comanda care contine alias-ul, IBAN-ul contului si email-ul utilizatorului.
+     *               Daca utilizatorul sau contul nu exista, alias-ul nu va fi setat.
+     */
+    public void setAlias(final CommandInput command) {
+        String alias = command.getAlias();
+        String iban = command.getAccount();
 
-        // Căutăm utilizatorul pe baza email-ului
-        User user = findUserByEmail(email);
+        User user = User.findByEmail(users, command.getEmail());
         if (user == null) {
-            return; // Utilizatorul nu există, ieșim fără a face nimic
+            return;
         }
 
-        // Căutăm contul asociat IBAN-ului
         Account account = user.getAccountByIBAN(iban);
         if (account == null) {
-            return; // Contul nu există, ieșim fără a face nimic
+            return;
         }
 
-        // Asociem alias-ul cu IBAN-ul
         user.setAlias(alias, iban);
-    }
-
-    private User findUserByEmail(String email) {
-        for (User user : users) {
-            if (user.getEmail().equals(email)) {
-                return user;
-            }
-        }
-        return null;
     }
 }
 

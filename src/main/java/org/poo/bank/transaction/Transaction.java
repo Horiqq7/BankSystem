@@ -4,7 +4,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class Transaction {
+/**
+ * Reprezinta o tranzactie efectuata in sistemul bancar
+ */
+public final class Transaction {
     private final int timestamp;
     private final String description;
     private final String senderIBAN;
@@ -19,9 +22,28 @@ public class Transaction {
     private final List<String> involvedAccounts;
     private final String error;
 
-    public Transaction(int timestamp, String description, String senderIBAN, String receiverIBAN,
-                       double amount, String currency, String transferType, String card, String cardHolder, String commerciant,
-                       List<String> involvedAccounts, String error, String transactionType) {
+    /**
+     * Constructor pentru crearea unei tranzactii.
+     *
+     * @param timestamp Timestamp-ul tranzactiei.
+     * @param description Descrierea tranzactiei.
+     * @param senderIBAN IBAN-ul expeditorului.
+     * @param receiverIBAN IBAN-ul destinatarului.
+     * @param amount Suma tranzactionata.
+     * @param currency Moneda tranzactiei.
+     * @param transferType Tipul transferului.
+     * @param card Cardul asociat tranzacției.
+     * @param cardHolder Detinatorul cardului.
+     * @param commerciant Comerciantul implicat.
+     * @param involvedAccounts Conturile implicate.
+     * @param error Eroarea asociata unei tranzactii, daca exista.
+     * @param transactionType Tipul tranzactiei.
+     */
+    public Transaction(final int timestamp, final String description, final String senderIBAN,
+                       final String receiverIBAN, final double amount, final String currency,
+                       final String transferType, final String card, final String cardHolder,
+                       final String commerciant, final List<String> involvedAccounts,
+                       final String error, final String transactionType) {
         this.timestamp = timestamp;
         this.description = description;
         this.senderIBAN = senderIBAN;
@@ -47,116 +69,6 @@ public class Transaction {
 
     public String getTransactionType() {
         return transactionType;
-    }
-
-    public Map<String, Object> toMap() {
-        Map<String, Object> map = new HashMap<>();
-
-
-        switch (transactionType) {
-            case "createCard":
-                map.put("timestamp", timestamp);
-                map.put("description", description);
-                map.put("card", card);
-                map.put("cardHolder", cardHolder);
-                map.put("account", receiverIBAN);
-                break;
-            case "addAccount":
-                map.put("timestamp", timestamp);
-                map.put("description", description);
-                break;
-            case "deleteAccountError": // Noua eroare pentru ștergerea contului
-                map.put("timestamp", timestamp);
-                map.put("description", description); // Adăugăm mesajul de eroare
-                break;
-            case "sendMoney":
-                map.put("timestamp", timestamp);
-                map.put("description", description);
-                map.put("senderIBAN", senderIBAN);
-                map.put("receiverIBAN", receiverIBAN);
-                map.put("amount", amount + " " + currency);
-                map.put("transferType", transferType);
-                break;
-            case "sendMoneyInsufficientFunds":
-                map.put("timestamp", timestamp);
-                map.put("description", description);
-                break;
-            case "payOnlineInsufficentFunds":
-                map.put("timestamp", timestamp);
-                map.put("description", description);
-                break;
-            case "payOnline":
-                map.put("timestamp", timestamp);
-                map.put("description", description);
-                map.put("commerciant", commerciant);
-                map.put("amount", amount);
-                break;
-            case "payOnlineCardIsFrozen":
-                map.put("timestamp", timestamp);
-                map.put("description", description);
-                break;
-            case "deleteCard":
-                map.put("timestamp", timestamp);
-                map.put("card", card);
-                map.put("account", senderIBAN);
-                map.put("cardHolder", cardHolder);
-                map.put("description", description);
-                break;
-            case "checkCardStatusFrozen":
-                map.put("timestamp", timestamp);
-                map.put("description", description);
-                break;
-            case "splitPayment":
-                map.put("timestamp", timestamp);
-                map.put("description", description);
-                map.put("currency", currency);
-                map.put("involvedAccounts", involvedAccounts);  // IBAN-uri de destinație
-                map.put("amount", amount); // Aici, trebuie să păstrăm suma ca un număr (fără ghilimele)
-                break;
-            case "splitPaymentError":
-                map.put("timestamp", timestamp);
-                map.put("description", description);
-                map.put("currency", currency);
-                map.put("involvedAccounts", involvedAccounts);
-                map.put("amount", amount); // Asigură-te că e suma totală
-                map.put("error", error);  // Mesajul de eroare
-                break;
-            case "destroyOneTimeCard":
-                map.put("timestamp", timestamp);
-                map.put("description", description);
-                map.put("card", card);
-                map.put("cardHolder", cardHolder);
-                map.put("account", senderIBAN);
-                break;
-            case "newOneTimeCard":
-                map.put("timestamp", timestamp);
-                map.put("description", description);
-                map.put("card", card);
-                map.put("cardHolder", cardHolder);
-                map.put("account", senderIBAN);
-                break;
-            case "changeInterestRate":
-                map.put("timestamp", timestamp);
-                map.put("description", description);
-                break;
-            case "spendingsReportError":  // Noua eroare pentru raportul de cheltuieli
-                map.put("timestamp", timestamp);
-                map.put("description", description);  // Adăugăm mesajul de eroare
-                map.put("error", error);  // Mesajul de eroare
-                break;
-            default:
-                break;
-        }
-        return map;
-    }
-
-
-    public String getCard() {
-        return card;
-    }
-
-    public String getCardHolder() {
-        return cardHolder;
     }
 
     public int getTimestamp() {
@@ -185,5 +97,93 @@ public class Transaction {
 
     public String getTransferType() {
         return transferType;
+    }
+
+    public String getCard() {
+        return card;
+    }
+
+    public String getCardHolder() {
+        return cardHolder;
+    }
+
+    public String getError() {
+        return error;
+    }
+
+    /**
+     * Transforma tranzactia într-un map cu detalii.
+     *
+     * @return Un map care contine detalii despre fiecare tranzactie.
+     */
+    public Map<String, Object> toMap() {
+        Map<String, Object> map = new HashMap<>();
+
+        switch (transactionType) {
+            case "createCard":
+                map.put("timestamp", timestamp);
+                map.put("description", description);
+                map.put("card", card);
+                map.put("cardHolder", cardHolder);
+                map.put("account", receiverIBAN);
+                break;
+            case "addAccount", "sendMoneyInsufficientFunds", "deleteAccountError",
+                 "payOnlineInsufficientFunds", "payOnlineCardIsFrozen",
+                 "checkCardStatusFrozen", "changeInterestRate":
+                map.put("timestamp", timestamp);
+                map.put("description", description);
+                break;
+            case "sendMoney":
+                map.put("timestamp", timestamp);
+                map.put("description", description);
+                map.put("senderIBAN", senderIBAN);
+                map.put("receiverIBAN", receiverIBAN);
+                map.put("amount", amount + " " + currency);
+                map.put("transferType", transferType);
+                break;
+            case "payOnline":
+                map.put("timestamp", timestamp);
+                map.put("description", description);
+                map.put("commerciant", commerciant);
+                map.put("amount", amount);
+                break;
+            case "deleteCard":
+                map.put("timestamp", timestamp);
+                map.put("card", card);
+                map.put("account", senderIBAN);
+                map.put("cardHolder", cardHolder);
+                map.put("description", description);
+                break;
+            case "splitPayment":
+                map.put("timestamp", timestamp);
+                map.put("description", description);
+                map.put("currency", currency);
+                map.put("involvedAccounts", involvedAccounts);
+                map.put("amount", amount);
+                break;
+            case "splitPaymentError":
+                map.put("timestamp", timestamp);
+                map.put("description", description);
+                map.put("currency", currency);
+                map.put("involvedAccounts", involvedAccounts);
+                map.put("amount", amount);
+                map.put("error", error);
+                break;
+            case "destroyOneTimeCard", "newOneTimeCard":
+                map.put("timestamp", timestamp);
+                map.put("description", description);
+                map.put("card", card);
+                map.put("cardHolder", cardHolder);
+                map.put("account", senderIBAN);
+                break;
+            case "spending'sReportError":
+                map.put("timestamp", timestamp);
+                map.put("description", description);
+                map.put("error", error);
+                break;
+            default:
+                break;
+        }
+        return map;
     }
 }

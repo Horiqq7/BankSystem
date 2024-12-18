@@ -3,45 +3,49 @@ package org.poo.bank.commands.account_commands;
 import org.poo.bank.account.Account;
 import org.poo.bank.transaction.Transaction;
 import org.poo.fileio.CommandInput;
-import org.poo.bank.users.User;
+import org.poo.bank.user.User;
 
 import java.util.List;
 
-public class AddFunds {
+public final class AddFunds {
     private final List<User> users;
 
-    public AddFunds(List<User> users) {
+    public AddFunds(final List<User> users) {
         this.users = users;
     }
 
-    public void addFunds(CommandInput command) {
-        String iban = command.getAccount();  // IBAN-ul contului la care se adaugă fonduri
-        double amount = command.getAmount();  // Suma care se adaugă
+    /**
+     * Adauga fonduri intr-un cont pe baza IBAN-ului specificat.
+     * Dupa adaugarea fondurilor, creeaza o tranzactie si o adauga in istoricul contului.
+     *
+     * @param command Comanda care contine detalii despre contul IBAN si suma de adaugat.
+     */
+    public void addFunds(final CommandInput command) {
+        String iban = command.getAccount();
+        double amount = command.getAmount();
 
-        // Parcurgem toți utilizatorii pentru a găsi contul cu IBAN-ul respectiv
         for (User user : users) {
-            Account account = user.getAccountByIBAN(iban);  // Căutăm contul în cadrul fiecărui utilizator
+            Account account = user.getAccountByIBAN(iban);
 
             if (account != null) {
-                // Adăugăm suma la balance-ul contului găsit
                 account.addFunds(amount);
                 Transaction transaction = new Transaction(
-                        (int) (System.currentTimeMillis() / 1000),  // Timpul tranzacției
-                        "Funds added",  // Descrierea tranzacției
-                        null,  // Sender IBAN
-                        iban,  // Receiver IBAN
-                        amount,  // Suma adăugată
-                        account.getCurrency(),  // Moneda contului
-                        "addFunds",  // Tipul tranzacției
-                        null,  // Numărul cardului (neaplicabil)
-                        null,  // Deținătorul cardului
-                        null,  // Comerciant (neaplicabil)
-                        null,  // Conturi implicate (neaplicabil)
-                        null,  // Alte informații
-                        "addFunds"  // Tipul tranzacției
+                        0,
+                        "Funds added",
+                        null,
+                        iban,
+                        amount,
+                        account.getCurrency(),
+                        "addFunds",
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        "addFunds"
                 );
-                account.addTransaction(transaction);  // Adăugăm tranzacția în istoricul contului
-                break;  // Ieșim din buclă după ce găsim contul
+                account.addTransaction(transaction);
+                break;
             }
         }
     }

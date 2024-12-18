@@ -1,28 +1,48 @@
 package org.poo.bank.commands.pay_commands;
 
-import org.poo.bank.*;
 import org.poo.bank.account.Account;
 import org.poo.bank.cards.Card;
 import org.poo.bank.cards.OneTimeCard;
 import org.poo.bank.transaction.Transaction;
 import org.poo.fileio.CommandInput;
 import org.poo.bank.exchange_rates.ExchangeRateManager;
-import org.poo.bank.users.User;
+import org.poo.bank.user.User;
 import org.poo.utils.Utils;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Collections;
 
-public class PayOnline {
+
+public final class PayOnline {
     private List<User> users;
 
-    public PayOnline(List<User> users) {
+    public PayOnline(final List<User> users) {
         this.users = users;
     }
 
-    public List<Map<String, Object>> payOnline(CommandInput command, Bank bank) {
+    /**
+     * Proceseaza o plata online folosind comanda furnizata.
+     *
+     * Metoda verifica daca utilizatorul exista, gaseste cardul specificat,
+     * verifica fondurile suficiente, efectueaza conversia valutara daca este
+     * necesar si actualizeaza statusul cardului si al contului dupa caz.
+     *
+     * Se gestioneaza mai multe scenarii, inclusiv fonduri insuficiente,
+     * carduri congelate si distrugerea cardurilor de unică folosință.
+     *
+     * @param command Comanda care contine detaliile platii.
+     *
+     * @return O lista de harti de raspuns care contin statusul comenzii,
+     * incluzand erorile, daca este cazul.
+     *         O lista goala indica procesarea cu succes.
+     */
+    public List<Map<String, Object>> payOnline(final CommandInput command) {
         List<Map<String, Object>> output = new ArrayList<>();
 
-        User user = findUserByEmail(command.getEmail());
+        User user = User.findByEmail(users, command.getEmail());
         if (user == null) {
             Map<String, Object> errorNode = new HashMap<>();
             errorNode.put("description", "User not found");
@@ -36,15 +56,8 @@ public class PayOnline {
         Account account = null;
         Card card = null;
 
-        System.out.println("Checking accounts for user: " + user.getEmail());
         for (Account acc : user.getAccounts()) {
-            System.out.println("Checking account with IBAN: " + acc.getIBAN());
             card = acc.getCardByNumber(command.getCardNumber());
-
-            if (card != null) {
-                System.out.println("Card found: " + card.getCardNumber() + " with status: " + card.getStatus());
-            }
-
             if (card != null) {
                 account = acc;
                 break;
@@ -63,26 +76,18 @@ public class PayOnline {
             return output;
         }
 
-        if (account == null) {
-            System.out.println("Account is null for user: " + user.getEmail());
-            return output;
-        } else {
-            System.out.println("Account is valid: " + account.getIBAN());
-        }
-
         double amount = command.getAmount();
         String currency = command.getCurrency();
         double availableBalance = account.getBalance();
 
-        // Conversia valutei, dacă este necesar
         if (!currency.equalsIgnoreCase(account.getCurrency())) {
             try {
                 amount = ExchangeRateManager.getInstance()
-                        .convertCurrency(currency, account.getCurrency(), amount, command.getTimestamp());
+                        .convertCurrency(currency, account.getCurrency(),
+                                amount);
             } catch (IllegalArgumentException e) {
                 Map<String, Object> errorNode = new HashMap<>();
                 errorNode.put("description", "Exchange rates not available");
-
                 Map<String, Object> response = new HashMap<>();
                 response.put("command", "payOnline");
                 response.put("output", errorNode);
@@ -92,21 +97,20 @@ public class PayOnline {
             }
         }
 
-        // Verificăm dacă sunt suficiente fonduri
         if (availableBalance < amount && card.getStatus().equals("active")) {
             Transaction transaction1 = new Transaction(
                     command.getTimestamp(),
                     "Insufficient funds",
-                    null, // Sender IBAN
-                    null, // Receiver IBAN (comerciantul)
+                    null,
+                    null,
                     0,
                     account.getCurrency(),
-                    "payment", // Transfer Type
-                    command.getCardNumber(), // Card Number
-                    user.getEmail(), null, // Card Holder
+                    "payment",
+                    command.getCardNumber(),
+                    user.getEmail(), null,
                     null,
                     null,
-                    "payOnlineInsufficentFunds" // Transaction Type
+                    "payOnlineInsufficientFunds"
             );
             user.addTransaction(transaction1);
             return output;
@@ -114,40 +118,34 @@ public class PayOnline {
 
         if (amount > availableBalance - account.getMinimumBalance()) {
             card.setStatus("frozen");
-            System.out.println("Card " + card.getCardNumber() + " has been frozen.");
         }
 
         if (card.getStatus().equals("frozen")) {
-            // Înregistrăm tranzacția că cardul este blocat
             Transaction transaction = new Transaction(
                     command.getTimestamp(),
                     "The card is frozen",
-                    account.getIBAN(), // Sender IBAN
-                    command.getCommerciant(), // Receiver IBAN (comerciantul)
-                    0, // Nu se face transfer
+                    account.getIban(),
+                    command.getCommerciant(),
+                    0,
                     account.getCurrency(),
-                    "payment", // Transfer Type
-                    command.getCardNumber(), // Card Number
-                    user.getEmail(), // Card Holder
-                    command.getCommerciant(), // Commerciant
+                    "payment",
+                    command.getCardNumber(),
+                    user.getEmail(),
+                    command.getCommerciant(),
                     null,
                     null,
-                    "payOnlineCardIsFrozen" // Transaction Type
+                    "payOnlineCardIsFrozen"
             );
 
-            // Adăugăm tranzacția utilizatorului
             user.addTransaction(transaction);
-
-            // Nu mai procesăm plata
             return output;
         }
 
-        // Creăm tranzacția folosind clasa Transaction
         account.withdrawFunds(amount);
         Transaction transaction = new Transaction(
                 command.getTimestamp(),
                 "Card payment",
-                account.getIBAN(),
+                account.getIban(),
                 command.getCommerciant(),
                 amount,
                 account.getCurrency(),
@@ -164,42 +162,38 @@ public class PayOnline {
         account.addTransaction(transaction);
 
         if (card instanceof OneTimeCard) {
-            // Tranzacție pentru distrugerea cardului OneTimeCard
             Transaction destroyCardTransaction = new Transaction(
                     command.getTimestamp(),
                     "The card has been destroyed",
-                    account.getIBAN(),
-                    null, // Nicio destinație pentru card distrus
+                    account.getIban(),
+                    null,
                     0,
                     account.getCurrency(),
                     "other",
                     card.getCardNumber(),
                     user.getEmail(),
-                    null, // Nu există comerciant
+                    null,
                     null,
                     null,
                     "destroyOneTimeCard"
             );
             user.addTransaction(destroyCardTransaction);
             account.addTransaction(destroyCardTransaction);
-
-            // Creăm un nou card
             String newCardNumber = Utils.generateCardNumber();
-            card.setCardNumber(newCardNumber); // Schimbă numărul cardului existent
-            card.setStatus("active"); // Setăm cardul înapoi la statusul "active"
+            card.setCardNumber(newCardNumber);
+            card.setStatus("active");
 
-            // Tranzacție pentru crearea unui nou card
             Transaction newCardTransaction = new Transaction(
-                    command.getTimestamp(), // Incrementăm timestamp-ul pentru actualizarea cardului
+                    command.getTimestamp(),
                     "New card created",
-                    account.getIBAN(),
-                    null, // Nicio destinație pentru cardul nou
-                    0, // Nu se face transfer
+                    account.getIban(),
+                    null,
+                    0,
                     account.getCurrency(),
                     "other",
                     newCardNumber,
                     user.getEmail(),
-                    null, // Nu există comerciant
+                    null,
                     null,
                     null,
                     "newOneTimeCard"
@@ -208,15 +202,6 @@ public class PayOnline {
             account.addTransaction(newCardTransaction);
         }
 
-        // Nu adăugăm nimic în output în cazul unui succes
-        return Collections.emptyList(); // succes
-    }
-
-    // Metoda care caută utilizatorul în lista de utilizatori pe baza email-ului
-    public User findUserByEmail(String email) {
-        return users.stream()
-                .filter(user -> user.getEmail().equalsIgnoreCase(email))
-                .findFirst()
-                .orElse(null);  // Returnează null dacă utilizatorul nu există
+        return Collections.emptyList();
     }
 }

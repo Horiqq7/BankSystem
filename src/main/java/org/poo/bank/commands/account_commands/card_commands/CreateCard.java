@@ -4,64 +4,58 @@ import org.poo.bank.account.Account;
 import org.poo.bank.cards.Card;
 import org.poo.bank.transaction.Transaction;
 import org.poo.fileio.CommandInput;
-import org.poo.bank.users.User;
+import org.poo.bank.user.User;
 import org.poo.utils.Utils;
 
 import java.util.List;
 
-public class CreateCard {
+public final class CreateCard {
     private final List<User> users;
 
-    public CreateCard(List<User> users) {
+    public CreateCard(final List<User> users) {
         this.users = users;
     }
 
-    public void createCard(CommandInput command) {
-        // Găsim utilizatorul pe baza email-ului
-        User user = findUserByEmail(command.getEmail());
+    /**
+     * Creeaza un card pentru un cont existent pe baza comenzii primite.
+     * Caut utilizatorul pe baza email-ului si contul pe baza IBAN-ului,
+     * generez un numar de card si adaug cardul in contul utilizatorului.
+     * Se creeaza si o tranzactie.
+     *
+     * @param command Comanda care contine detalii despre utilizator, cont si timestamp.
+     */
+    public void createCard(final CommandInput command) {
+        User user = User.findByEmail(users, command.getEmail());
         if (user == null) {
-            return; // Ieșim dacă utilizatorul nu există
+            return;
         }
 
-        // Găsim contul asociat utilizatorului
         Account account = user.getAccountByIBAN(command.getAccount());
         if (account == null) {
-            return; // Ieșim dacă contul nu există
+            return;
         }
 
-        // Generăm detaliile cardului
         String cardNumber = Utils.generateCardNumber();
         Card card = new Card(cardNumber, "active");
-
-        // Adăugăm cardul la cont
         account.addCard(card);
 
-        // Creăm tranzacția asociată adăugării cardului
         Transaction transaction = new Transaction(
                 command.getTimestamp(),
-                "New card created", // Descrierea tranzacției
-                null, // Sender IBAN (nu există)
-                account.getIBAN(), // Receiver IBAN (contul asociat)
-                0, // Suma tranzacției (0 pentru crearea cardului)
-                account.getCurrency(),
-                "other", // Tipul transferului
-                cardNumber, // Numărul cardului
-                user.getEmail(), // Deținătorul cardului
-                null, // Comerciant (nu este aplicabil)
-                null, // Conturi implicate
+                "New card created",
                 null,
-                "createCard" // Tipul tranzacției
+                account.getIban(),
+                0,
+                account.getCurrency(),
+                null,
+                cardNumber,
+                user.getEmail(),
+                null,
+                null,
+                null,
+                "createCard"
         );
 
-        // Adăugăm tranzacția atât la utilizator, cât și la cont
         user.addTransaction(transaction);
         account.addTransaction(transaction);
-    }
-
-    private User findUserByEmail(String email) {
-        return users.stream()
-                .filter(user -> user.getEmail().equals(email))
-                .findFirst()
-                .orElse(null);
     }
 }

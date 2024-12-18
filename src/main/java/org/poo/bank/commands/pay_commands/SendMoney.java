@@ -4,18 +4,33 @@ import org.poo.bank.account.Account;
 import org.poo.bank.transaction.Transaction;
 import org.poo.fileio.CommandInput;
 import org.poo.bank.exchange_rates.ExchangeRateManager;
-import org.poo.bank.users.User;
+import org.poo.bank.user.User;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Collections;
 
-public class SendMoney {
+public final class SendMoney {
     private final List<User> users;
 
-    public SendMoney(List<User> users) {
+    public SendMoney(final List<User> users) {
         this.users = users;
     }
 
-    public List<Map<String, Object>> sendMoney(CommandInput command) {
+    /**
+     * Transfer bani de la un utilizator la altul.
+     * Aceasta metoda verifica daca contul expeditorului si destinatarului exista,
+     * daca expeditorul are suficiente fonduri si se efectueaza tranzactia.
+     * In cazul in care monedele diferite sunt implicate, se efectueaza conversia valutara.
+     * Daca tranzactia nu poate fi realizata, sunt adaugate erori corespunzatoare in
+     * lista de iesire.
+     *
+     * @param command comanda care contine detaliile tranzactiei.
+     * @return lista de erori, daca exista, sau lista goala daca tranzactia a avut succes
+     */
+    public List<Map<String, Object>> sendMoney(final CommandInput command) {
         List<Map<String, Object>> output = new ArrayList<>();
         String senderIBAN = command.getAccount();
         String receiverIBAN = command.getReceiver();
@@ -23,7 +38,6 @@ public class SendMoney {
         String description = command.getDescription();
         int timestamp = command.getTimestamp();
 
-        // Verificăm suma transferată
         if (amount <= 0) {
             Map<String, Object> error = new HashMap<>();
             error.put("description", "Invalid amount");
@@ -31,7 +45,6 @@ public class SendMoney {
             return output;
         }
 
-        // Căutăm expeditorul
         Account senderAccount = null;
         User senderUser = null;
         for (User user : users) {
@@ -49,7 +62,6 @@ public class SendMoney {
             return output;
         }
 
-        // Căutăm destinatarul
         Account receiverAccount = null;
         User receiverUser = null;
         for (User user : users) {
@@ -67,9 +79,7 @@ public class SendMoney {
             return output;
         }
 
-        // Verificăm dacă expeditorul are suficiente fonduri
         if (senderAccount.getBalance() < amount) {
-            // Adăugăm tranzacția de eroare la utilizator
             Transaction insufficientFundsTransaction = new Transaction(
                     timestamp,
                     "Insufficient funds",
@@ -77,8 +87,10 @@ public class SendMoney {
                     receiverIBAN,
                     amount,
                     senderAccount.getCurrency(),
-                    "error",
-                    null, null, null,
+                    null,
+                    null,
+                    null,
+                    null,
                     null,
                     null,
                     "sendMoneyInsufficientFunds"
@@ -98,8 +110,7 @@ public class SendMoney {
                 convertedAmount = ExchangeRateManager.getInstance().convertCurrency(
                         senderAccount.getCurrency(),
                         receiverAccount.getCurrency(),
-                        amount,
-                        command.getTimestamp()
+                        amount
                 );
             } catch (IllegalArgumentException e) {
                 Map<String, Object> error = new HashMap<>();
@@ -109,7 +120,6 @@ public class SendMoney {
             }
         }
 
-        // Tranzacție atomică
         senderAccount.withdrawFunds(amount);
         receiverAccount.addFunds(convertedAmount);
 
@@ -118,9 +128,15 @@ public class SendMoney {
                 description,
                 senderIBAN,
                 receiverIBAN,
-                Double.parseDouble(String.format("%.14f", amount)), // Asigurăm precizia pentru expeditor
+                Double.parseDouble(String.format("%.14f", amount)),
                 senderAccount.getCurrency(),
-                "sent", null, null, null, null, null, "sendMoney"
+                "sent",
+                null,
+                null,
+                null,
+                null,
+                null,
+                "sendMoney"
         );
 
         Transaction receiverTransaction = new Transaction(
@@ -128,9 +144,15 @@ public class SendMoney {
                 description,
                 senderIBAN,
                 receiverIBAN,
-                Double.parseDouble(String.format("%.14f", convertedAmount)), // Asigurăm precizia pentru destinatar
+                Double.parseDouble(String.format("%.14f", convertedAmount)),
                 receiverAccount.getCurrency(),
-                "received", null, null, null, null, null, "sendMoney"
+                "received",
+                null,
+                null,
+                null,
+                null,
+                null,
+                "sendMoney"
         );
 
         senderUser.addTransaction(senderTransaction);
@@ -139,7 +161,6 @@ public class SendMoney {
         receiverUser.addTransaction(receiverTransaction);
         receiverAccount.addTransaction(receiverTransaction);
 
-        // Întoarcem o listă goală pentru succes
         return Collections.emptyList();
     }
 }

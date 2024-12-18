@@ -4,62 +4,52 @@ import org.poo.bank.account.Account;
 import org.poo.bank.cards.Card;
 import org.poo.bank.transaction.Transaction;
 import org.poo.fileio.CommandInput;
-import org.poo.bank.users.User;
+import org.poo.bank.user.User;
 
 import java.util.List;
 
-public class DeleteCard {
+public final class DeleteCard {
     private final List<User> users;
 
-    public DeleteCard(List<User> users) {
+    public DeleteCard(final List<User> users) {
         this.users = users;
     }
 
-    public void deleteCard(CommandInput command) {
-        // Găsim utilizatorul pe baza email-ului
-        User user = findUserByEmail(command.getEmail());
+    /**
+     * Executa comanda de stergere a unui card asociat unui cont al unui utilizator.
+     * Daca cardul e gasit, acesta e eliminat si se inregistreaza o tranzactie.
+     *
+     * @param command Comanda care contine detaliile cardului.
+     */
+    public void deleteCard(final CommandInput command) {
+        User user = User.findByEmail(users, command.getEmail());
         if (user == null) {
-            return; // Ieșim dacă utilizatorul nu există
+            return;
         }
 
-        // Iterăm prin toate conturile utilizatorului
         for (Account account : user.getAccounts()) {
-            // Găsim cardul pe baza numărului de card
             Card card = account.getCardByNumber(command.getCardNumber());
             if (card != null) {
-                // Eliminăm cardul din cont
                 account.removeCard(card);
-
-                // Creăm tranzacția asociată ștergerii cardului
                 Transaction transaction = new Transaction(
                         command.getTimestamp(),
-                        "The card has been destroyed", // Descrierea tranzacției
-                        account.getIBAN(), // Sender IBAN
-                        null, // Receiver IBAN
-                        0, // Suma tranzacției
-                        account.getCurrency(), // Moneda tranzacției
-                        "other", // Tipul transferului
-                        card.getCardNumber(), // Numărul cardului
-                        user.getEmail(), // Email-ul utilizatorului
-                        null, // Comerciant (nu este aplicabil)
-                        null, // Conturi implicate (nu este aplicabil)
-                        null, // Alte informații
-                        "deleteCard" // Tipul tranzacției
+                        "The card has been destroyed",
+                        account.getIban(),
+                        null,
+                        0,
+                        account.getCurrency(),
+                        null,
+                        card.getCardNumber(),
+                        user.getEmail(),
+                        null,
+                        null,
+                        null,
+                        "deleteCard"
                 );
 
-                // Adăugăm tranzacția la utilizator
                 user.addTransaction(transaction);
-                return; // Ieșim după ștergerea cardului
+                return;
             }
         }
-    }
-
-    private User findUserByEmail(String email) {
-        for (User user : users) {
-            if (user.getEmail().equals(email)) {
-                return user;
-            }
-        }
-        return null;
     }
 }

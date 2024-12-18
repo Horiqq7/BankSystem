@@ -2,23 +2,30 @@ package org.poo.bank.commands.account_commands;
 
 import org.poo.bank.account.Account;
 import org.poo.fileio.CommandInput;
-import org.poo.bank.users.User;
+import org.poo.bank.user.User;
 
 import java.util.List;
 import java.util.Map;
 
-public class AddInterest {
+public final class AddInterest {
     private final List<User> users;
+    private static final int PERCENTAGE_DIVISOR = 100;
 
-    public AddInterest(List<User> users) {
+    public AddInterest(final List<User> users) {
         this.users = users;
     }
 
-    public List<Map<String, Object>> addInterest(CommandInput command) {
+    /**
+     * Adauga dobanda unui cont de economii specificat, daca este gasit.
+     *
+     * @param command Comanda care contine IBAN-ul contului si timestamp-ul.
+     * @return O lista de mapuri care contine informatii despre rezultat,
+     * inclusiv daca contul nu a fost gasit sau daca contul nu este un cont de economii.
+     */
+    public List<Map<String, Object>> addInterest(final CommandInput command) {
         String targetIBAN = command.getAccount();
         int currentTimestamp = command.getTimestamp();
 
-        // Căutăm contul țintă
         Account targetAccount = null;
         for (User user : users) {
             targetAccount = user.getAccountByIBAN(targetIBAN);
@@ -28,35 +35,39 @@ public class AddInterest {
         }
 
         if (targetAccount == null) {
-            // Returnăm eroarea dacă contul nu este găsit
-            return List.of(Map.of(
-                    "command", "addInterest",
-                    "output", Map.of(
-                            "description", "Account not found",
-                            "timestamp", currentTimestamp
-                    ),
+            Map<String, Object> output = Map.of(
+                    "description", "Account not found",
                     "timestamp", currentTimestamp
-            ));
+            );
+
+            Map<String, Object> response = Map.of(
+                    "command", "addInterest",
+                    "output", output,
+                    "timestamp", currentTimestamp
+            );
+
+            return List.of(response);
         }
 
-        // Verificăm dacă este un cont de tip "savings"
-        if (!"savings".equalsIgnoreCase(targetAccount.getType())) {
-            // Returnăm eroarea dacă contul nu este de tip "savings"
-            return List.of(Map.of(
-                    "command", "addInterest",
-                    "output", Map.of(
-                            "description", "This is not a savings account",
-                            "timestamp", currentTimestamp
-                    ),
+        if (!"savings".equals(targetAccount.getType())) {
+            Map<String, Object> output = Map.of(
+                    "description", "This is not a savings account",
                     "timestamp", currentTimestamp
-            ));
+            );
+
+            Map<String, Object> response = Map.of(
+                    "command", "addInterest",
+                    "output", output,
+                    "timestamp", currentTimestamp
+            );
+
+            return List.of(response);
         }
 
-        // Calculăm dobânda și o adăugăm contului
-        double interestAmount = targetAccount.getBalance() * targetAccount.getInterestRate() / 100;
+        double interestAmount = targetAccount.getBalance()
+                * targetAccount.getInterestRate() / PERCENTAGE_DIVISOR;
         targetAccount.addFunds(interestAmount);
 
-        // Nu returnăm nimic în caz de succes (nu se adaugă niciun output)
-        return List.of();  // Listă goală în caz de succes
+        return List.of();
     }
 }

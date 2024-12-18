@@ -1,5 +1,7 @@
 package org.poo.bank;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.poo.bank.account.Account;
 import org.poo.bank.commands.account_commands.*;
 import org.poo.bank.commands.account_commands.card_commands.CheckCardStatus;
@@ -16,16 +18,28 @@ import org.poo.bank.commands.report_commands.SpendingsReport;
 import org.poo.bank.commands.report_commands.Report;
 import org.poo.fileio.CommandInput;
 import org.poo.fileio.ObjectInput;
-import org.poo.bank.users.User;
-
+import org.poo.bank.user.User;
 
 import java.util.*;
 
+
+/**
+ * Clasa Bank gestioneaza conturile si comenzile legate de utilizatori.
+ * Permite adaugarea, stergerea si gestionarea conturilor si cardurilor,
+ * precum si executarea diferitelor comenzi bancare.
+ */
+@Getter
 public class Bank {
     private final List<User> users = new ArrayList<>();
+    @Setter
     private Map<String, Account> accounts = new HashMap<>();
 
-    public Bank(ObjectInput inputData) {
+    /**
+     * Constructor pentru crearea unei banci pe baza datelor de intrare.
+     *
+     * @param inputData Datele utilizatorilor din fisierul de intrare
+     */
+    public Bank(final ObjectInput inputData) {
         if (inputData.getUsers() != null) {
             for (var userInput : inputData.getUsers()) {
                 User user = new User(userInput);
@@ -34,9 +48,14 @@ public class Bank {
         }
     }
 
-    public List<Map<String, Object>> processCommand(CommandInput command) {
-        List<Map<String, Object>> output = new ArrayList<>();
-        AbstractReportCommand reportCommand;
+    /**
+     * Proceseaza o comanda si returneaza rezultatul executarii acesteia.
+     *
+     * @param command Comanda care trebuie procesata
+     * @return Lista de obiecte care reprezinta rezultatul comenzii procesate
+     * @throws IllegalArgumentException Daca comanda nu este cunoscuta
+     */
+    public List<Map<String, Object>> processCommand(final CommandInput command) {
         switch (command.getCommand()) {
             case "printUsers":
                 PrintUsers printUsers = new PrintUsers(users);
@@ -59,8 +78,7 @@ public class Bank {
                 return Collections.emptyList();
             case "deleteAccount":
                 DeleteAccount deleteAccount = new DeleteAccount(getUsers());
-                Map<String, Object> deleteResponse = deleteAccount.deleteAccount(command);
-                return Collections.singletonList(deleteResponse);
+                return Collections.singletonList(deleteAccount.deleteAccount(command));
             case "deleteCard":
                 DeleteCard deleteCard = new DeleteCard(users);
                 deleteCard.deleteCard(command);
@@ -71,11 +89,8 @@ public class Bank {
                 return Collections.emptyList();
             case "payOnline":
                 PayOnline payOnlineProcessor = new PayOnline(users);
-                List<Map<String, Object>> response = payOnlineProcessor.payOnline(command, this);
-                if (!response.isEmpty()) {
-                    output.addAll(response);
-                }
-                return output;
+                List<Map<String, Object>> response = payOnlineProcessor.payOnline(command);
+                return response.isEmpty() ? Collections.emptyList() : response;
             case "sendMoney":
                 SendMoney sendMoneyProcessor = new SendMoney(users);
                 return sendMoneyProcessor.sendMoney(command);
@@ -88,40 +103,32 @@ public class Bank {
                 return printTransactions.printTransactions(command);
             case "checkCardStatus":
                 CheckCardStatus checkCardStatus = new CheckCardStatus();
-                Map<String, Object> checkCardStatusResponse = checkCardStatus.execute(command, getUsers());
-                return checkCardStatusResponse.isEmpty() ? Collections.emptyList() : List.of(checkCardStatusResponse);
+                Map<String, Object> checkCardStatusResponse = checkCardStatus.execute(command,
+                        getUsers());
+                return checkCardStatusResponse.isEmpty() ? Collections.emptyList()
+                        : List.of(checkCardStatusResponse);
             case "changeInterestRate":
                 ChangeInterestRate changeInterestRate = new ChangeInterestRate();
-                List<Map<String, Object>> changeInterestRateResponse = changeInterestRate.execute(command, getUsers());
-                return changeInterestRateResponse.isEmpty() ? Collections.emptyList() : changeInterestRateResponse;
+                List<Map<String, Object>> changeInterestRateResponse
+                        = changeInterestRate.execute(command, getUsers());
+                return changeInterestRateResponse.isEmpty() ? Collections.emptyList()
+                        : changeInterestRateResponse;
             case "splitPayment":
                 SplitPayment splitPaymentProcessor = new SplitPayment(users);
                 return splitPaymentProcessor.splitPayment(command);
             case "spendingsReport":
-                reportCommand = new SpendingsReport();
-                break;
+                AbstractReportCommand spendingsReport = new SpendingsReport();
+                return List.of(spendingsReport.process(command, getUsers()));
             case "report":
-                reportCommand = new Report();
-                break;
+                AbstractReportCommand report = new Report();
+                return List.of(report.process(command, getUsers()));
             case "addInterest":
                 AddInterest addInterestProcessor = new AddInterest(users);
                 return addInterestProcessor.addInterest(command);
             default:
-                throw new IllegalArgumentException("Unknown command: " + command.getCommand());
+                throw new IllegalArgumentException("Unknown command: "
+                        + command.getCommand());
         }
-        return List.of(reportCommand.process(command, getUsers()));
-    }
-
-    public List<User> getUsers() {
-        return users;
-    }
-
-    public Map<String, Account> getAccounts() {
-        return accounts;
-    }
-
-    public void setAccounts(Map<String, Account> accounts) {
-        this.accounts = accounts;
     }
 
 }

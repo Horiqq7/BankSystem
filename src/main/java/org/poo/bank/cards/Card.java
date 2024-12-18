@@ -8,28 +8,28 @@ public class Card {
     private String cardNumber;
     private String status;
 
-    public Card(String cardNumber, String status) {
+    public Card(final String cardNumber, final String status) {
         this.cardNumber = cardNumber;
         this.status = status;
     }
 
-    public void setCardNumber(String cardNumber) {
+    public final void setCardNumber(final String cardNumber) {
         this.cardNumber = cardNumber;
     }
 
-    public String getCardNumber() {
+    public final String getCardNumber() {
         return cardNumber;
     }
 
-    public String getStatus() {
+    public final String getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public final void setStatus(final String status) {
         this.status = status;
     }
 
-    public Map<String, Object> toMap() {
+    public final Map<String, Object> toMap() {
         Map<String, Object> map = new HashMap<>();
         map.put("cardNumber", cardNumber);
         map.put("status", status);
