@@ -1,0 +1,72 @@
+Rusu Horia
+321 CD
+
+    Pentru acest proiect am ales sa impart pe categorii obiectele importante din sistemul de banking,
+    astfel incat proiectul sa fie organizat in mai multe pachete si clase, fiecare avand responsabilitati
+    clare.
+
+    Pachetul main:
+    In clasa Main, metoda action proceseaza un fisier de intrare (care contine datele de test), incarca ratele de
+    schimb, initializeaza banca si proceseaza comenzile primite, generand un output pentru fiecare comanda.
+    Rezultatul este scris intr-un fisier de iesire, in format JSON.
+
+    Pachetul bank:
+    Este pachetul de baza al sistemului bancar, in care se regasesc toate celelalte pachete si clase. In acesta
+    se afla si clasa Bank, in care fiecare comanda primita ca input este procesata de sistem.
+
+    Pachetul account:
+    In pachetul Account am implementat clasa Account, care reprezinta un cont bancar si include functionalitati
+    pentru gestionarea tranzactiilor, cardurilor si altor atribute asociate unui cont. Clasa este implementata
+    folosind pattern-ul Builder pentru a permite crearea flexibila a obiectelor cu diferite configuratii.
+    Functionalitatile principale ale acestei clase sunt: gestionarea tranzactiilor, gestionarea cardurilor,
+    operatiuni asupra balantei, precum si rata accesarea si modificarea ratei dobanzii.
+
+    Pachetul cards:
+    Pachetul cards gestioneaza operatiunile si structurile de date legate de cardurile asociate conturilor bancare.
+    Acesta include clasele de baza si extensii pentru tipurile de carduri.
+    Clasa Card este clasa de baza care reprezinta un card generic, si e utilizata pentru a reprezenta orice tip
+    de card care poate fi asociat unui cont.
+    Clasa OneTimeCard este o extensie a clasei Card si reprezinta un tip special de card, ce poate fi folosit o
+    singura data. Aceasta mosteneste toate atributele si metodele clasei Card, si e destinata sa extinda
+    functionalitatea cardurilor cu utilizare unica
+
+    Pachetul exchange_rates:
+    Pachetul exchange_rates este responsabil pentru gestionarea si manipularea cursurilor de schimb valutar.
+    Acesta include clase care modeleaza ratele de schimb si ofera functionalitati pentru încarcarea, conversia si
+    navigarea intre valute folosind un graf de rate.
+    Clasa ExchangeRate reprezinta un curs de schimb valutar individual. Ea e utilizata pentru a modela o relatie
+    specifica intre 2 monede.
+    Clasa ExchangeRateManager e clasa principala care gestioneaza colectia de rate de schimb si ofera functionalitati
+    de conversie intre monede. In aceasta clasa am implementat un algoritm de tip BFS pentru a calcula rate indirecte
+    intre 2 monede care nu au o relatie directa.
+
+    Pachetul transaction:
+    Pachetul transaction este responsabil pentru modelarea tranzactiilor efectuate in cadrul sistemului bancar.
+    Acesta include clasa Transaction, care reprezinta o tranzactie individuala si ofera functionalitati pentru conversia
+    detaliilor acesteia intr-un format usor de procesat. Clasa Transaction permite stocarea detaliilor unei tranzactii
+    intr-un mod structurat, precum si conversia detaliilor intr-un mod generalizat, pentru a facilita generarea
+    rapoartelor sau procesarea ulterioara.
+
+    Pachetul user:
+    Pachetul user include Clasa User, care modeleaza detaliile si comportamentul unui utilizator al sistemului.
+    Aceasta reprezinta un utilizator unic din sistem si contine informatiile necesare pentru identificarea,
+    gestionarea conturilor si interactiunea cu alte componente ale aplicatiei bancare.
+
+    Pachetul commands:
+    Pachetul commands reprezinta locul in care sunt implementate toate comenzile posibile. Am ales sa le grupez in
+    pachete separate in functie de tipul comenzii. Clasa CommandHandler proceseaza comenzi bancare de tip CommandInput,
+    executa logica specifica si genereaza raspunsuri JSON. Gestioneaza operatiuni precum afisarea utilizatorilor,
+    stergerea conturilor, verificarea cardurilor si raportarea tranzactiilor, interactionand cu clasa Bank.
+
+    In pachetul account_commands se afla toate comenzile ce au legatura cu un obiect de tip account. De asemena, am ales
+    sa creez un pachet nou numit card_commands, in care se afla comenzile ce au legatura cu obiectele de tip card.
+    In pachetul pay_commands se afla comenzile legate de tranzactii. Aici am implementat comenzile de payOnline,
+    sendMoney si splitPayment, fiecare avand un rol important in sistemul bancar.
+    Pachetul print_commands contine comenzile ce au legatura cu afisarea tranzactiilor si a utilizatorilor.
+    Pachetul report_commands gestioneaza generarea rapoartelor financiare pentru conturi bancare.
+    Clasa abstracta AbstractReportCommand defineste structura de baza pentru procesarea rapoartelor, incluzand validarea
+    contului si formatul rezultatelor. Clasa Report genereaza un raport detaliat al tranzactiilor unui cont, filtrate
+    pe baza unui interval de timp, oferind informatii despre IBAN, sold si tranzactii. Clasa SpendingsReport creeaza
+    un raport al cheltuielilor, sortand comerciantii alfabetic si fiind compatibila doar cu conturile curente.
+
+

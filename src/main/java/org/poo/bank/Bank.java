@@ -130,5 +130,4 @@ public class Bank {
                         + command.getCommand());
         }
     }
-
 }

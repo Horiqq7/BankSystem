@@ -1,3 +1,51 @@
+commit d89f8a522368711d1a595132f2839bb2c0df22ae
+Author: Horia Rusu <horiarusu612@gmail.com>
+Date:   Wed Dec 18 22:25:49 2024 +0200
+
+    Am rezolvat erorile de checkstyle
+
+commit ebd5166596e0aaf2d7aec4d07ac34dc7026453f3
+Author: Horia Rusu <horiarusu612@gmail.com>
+Date:   Wed Dec 18 16:16:51 2024 +0200
+
+    Am modificat putin clasele individuale pentru comenzi
+
+commit 4196aa29402b351508e3512735cf9d713719b634
+Author: Horia Rusu <horiarusu612@gmail.com>
+Date:   Tue Dec 17 00:02:00 2024 +0200
+
+    Am rezolvat si testul 20, mai am probleme cu precizia la testul 19
+
+commit ccf975d366222e937f2515c9a348b5061f8bd35d
+Author: Horia Rusu <horiarusu612@gmail.com>
+Date:   Mon Dec 16 22:28:45 2024 +0200
+
+    Am organizat mai bine proiectul prin crearea de clase individuale pentru fiecare comanda
+
+commit f417bb00f1f2774b6aca3e26a6572400c7095228
+Author: Horia Rusu <horiarusu612@gmail.com>
+Date:   Mon Dec 16 15:39:35 2024 +0200
+
+    Am rezolvat testul 18
+
+commit 603aa26de94a1cd0eb29eb1e79b4aa5adcd7071f
+Author: Horia Rusu <horiarusu612@gmail.com>
+Date:   Sun Dec 15 21:02:08 2024 +0200
+
+    Alte mici schimbari la executia unor comenzi
+
+commit 62b1c5d48bcd0658393a6e9a88fdc21f578754fc
+Author: Horia Rusu <horiarusu612@gmail.com>
+Date:   Sat Dec 14 20:36:20 2024 +0200
+
+    Am facut comanda spedingsReport
+
+commit f1dc9a3d9b7d0d8f979d98f08a1d6c7a096273dd
+Author: Horia Rusu <horiarusu612@gmail.com>
+Date:   Thu Dec 12 21:43:06 2024 +0200
+
+    Am adaugat comanda de report
+
 commit d46d8cfd04f5e6a35f1c93be66b1f6da79ae6aed
 Author: Horia Rusu <horiarusu612@gmail.com>
 Date:   Thu Dec 12 01:06:19 2024 +0200
