@@ -1,0 +1,7 @@
+.idea/
+.vscode/
+.metals/
+target/
+result/
+*.class
+out.txt
